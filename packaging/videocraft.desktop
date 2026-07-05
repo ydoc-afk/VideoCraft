@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Type=Application
+Name=VideoCraft
+GenericName=AI Video Enhancement
+Comment=Upscale, denoise, colorize, HDR-convert and re-encode video with AI
+Exec=videocraft %F
+Icon=videocraft
+Terminal=false
+Categories=AudioVideo;Video;AudioVideoEditing;
+Keywords=video;upscale;denoise;colorize;hdr;ffmpeg;convert;ai;
+MimeType=video/mp4;video/x-matroska;video/quicktime;video/x-msvideo;video/webm;audio/mpeg;audio/flac;audio/wav;

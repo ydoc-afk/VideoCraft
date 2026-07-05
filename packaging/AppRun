@@ -1,0 +1,9 @@
+#!/bin/bash
+# AppRun — entry point for the VideoCraft AppImage.
+# Launches the PyInstaller-bundled executable. PyInstaller's bootloader
+# already wires up Qt plugin discovery, so we don't touch QT_PLUGIN_PATH.
+# We only extend PATH so the app's runtime FFmpeg fallback can still find
+# a host ffmpeg (none is bundled by default).
+HERE="$(dirname "$(readlink -f "${0}")")"
+export PATH="${HERE}/usr/bin:${PATH}"
+exec "${HERE}/usr/bin/videocraft" "$@"
