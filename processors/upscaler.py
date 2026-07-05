@@ -69,17 +69,24 @@ class UpscalerProcessor(FrameProcessor):
             num_in_ch=3, num_out_ch=3, num_feat=64,
             num_block=num_blocks, num_grow_ch=32, scale=native_scale,
         )
+        # tile_size=0 (or missing) means Auto → VRAM-based recommendation;
+        # a manual value is honored but clamped to the safe maximum.
+        tile = vram_manager.resolve_tile(job.params.get("tile_size", 0))
+
         self._cv2 = cv2
         self._upsampler = RealESRGANer(
             scale=native_scale,
             model_path=str(model_path),
             model=model,
-            tile=vram_manager.recommended_tile,
+            tile=tile,
             tile_pad=10,
             pre_pad=0,
             half=vram_manager.device != "cpu",
         )
-        logger.info("Loaded %s (scale %dx)", model_key, self._scale)
+        logger.info(
+            "Loaded %s (scale %dx) — tile=%d on %s",
+            model_key, self._scale, tile, vram_manager.summary(),
+        )
 
     def teardown_model(self) -> None:
         self._upsampler = None

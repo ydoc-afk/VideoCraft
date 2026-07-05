@@ -22,6 +22,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
+from core.theme import mark_hint
+
 
 class ToolsPanel(QFrame):
     """Tab widget wiring all tools' settings UIs.
@@ -143,16 +145,34 @@ class ToolsPanel(QFrame):
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
 
-        # Tile size
-        tile_group = QGroupBox("Tile Size (for low-VRAM)")
+        # Tile size — Auto (detect from VRAM) by default, with manual override
+        from core.vram_manager import vram_manager
+
+        tile_group = QGroupBox("Tile Size")
+        tile_outer = QVBoxLayout()
+
+        self.upscaler_tile_auto = QCheckBox("Auto (detect from VRAM)")
+        self.upscaler_tile_auto.setChecked(True)
+        self.upscaler_tile_auto.toggled.connect(self._on_tile_auto_toggled)
+        tile_outer.addWidget(self.upscaler_tile_auto)
+
+        self.upscaler_tile_info = QLabel(f"Detected: {vram_manager.summary()}")
+        self.upscaler_tile_info.setStyleSheet("font-size: 11px;")
+        mark_hint(self.upscaler_tile_info, True)
+        tile_outer.addWidget(self.upscaler_tile_info)
+
         tile_layout = QHBoxLayout()
         tile_layout.addWidget(QLabel("Tile:"))
         self.upscaler_tile = QSpinBox()
-        self.upscaler_tile.setRange(96, 512)
-        self.upscaler_tile.setValue(256)
+        self.upscaler_tile.setRange(96, 1024)
+        # Seed the manual value with the auto recommendation as a sane start
+        self.upscaler_tile.setValue(max(96, vram_manager.recommended_tile))
         self.upscaler_tile.setSingleStep(32)
+        self.upscaler_tile.setEnabled(False)  # disabled while Auto is on
         tile_layout.addWidget(self.upscaler_tile)
-        tile_group.setLayout(tile_layout)
+        tile_outer.addLayout(tile_layout)
+
+        tile_group.setLayout(tile_outer)
         layout.addWidget(tile_group)
 
         layout.addStretch()
@@ -472,15 +492,21 @@ class ToolsPanel(QFrame):
             return self._get_converter_params()
         return {}
 
+    def _on_tile_auto_toggled(self, checked: bool) -> None:
+        """Enable the manual tile spinbox only when Auto is unchecked."""
+        self.upscaler_tile.setEnabled(not checked)
+
     def _get_upscaler_params(self) -> dict:
         scale_map = {
             "RealESRGAN_x4plus (General)": "RealESRGAN_x4plus",
             "RealESRGAN_x4plus_anime (Animation)": "RealESRGAN_x4plus_anime",
         }
+        # tile_size=0 tells the upscaler to auto-pick from detected VRAM
+        tile_size = 0 if self.upscaler_tile_auto.isChecked() else self.upscaler_tile.value()
         return {
             "scale": self.upscaler_scale_group.checkedId(),
             "model": scale_map.get(self.upscaler_model.currentText(), "RealESRGAN_x4plus"),
-            "tile_size": self.upscaler_tile.value(),
+            "tile_size": tile_size,
         }
 
     def _get_denoiser_params(self) -> dict:

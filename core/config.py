@@ -25,7 +25,7 @@ class FFmpegConfig:
 @dataclass
 class GPUConfig:
     device: str = "auto"  # auto | cuda:0 | cpu
-    tile_size: int = 256
+    tile_size: int = 0  # 0 = Auto (detect from VRAM); >0 = manual override
     use_nvenc: bool = True  # prefer NVIDIA hardware encoding when available
 
 

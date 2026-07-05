@@ -15,7 +15,7 @@ def test_default_config_values():
     assert cfg.ffmpeg.path == "ffmpeg"
     assert cfg.ffmpeg.threads == 0
     assert cfg.gpu.device == "auto"
-    assert cfg.gpu.tile_size == 256
+    assert cfg.gpu.tile_size == 0  # 0 = Auto (detect from VRAM)
     assert cfg.upscaler.default_scale == 4
     assert cfg.upscaler.default_model == "RealESRGAN_x4plus"
     assert cfg.colorizer.default_style == "artistic"

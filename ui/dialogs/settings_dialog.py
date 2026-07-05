@@ -158,9 +158,19 @@ class SettingsDialog(QDialog):
         device_layout.addStretch()
         layout.addLayout(device_layout)
 
-        # Tile size
+        # Tile size — Auto (detect from VRAM) or a manual override
+        self.chk_tile_auto = QCheckBox("Tile size: Auto (detect from VRAM)")
+        self.chk_tile_auto.setToolTip(
+            "Pick the upscaler tile size from the detected GPU's VRAM. "
+            "Uncheck to set it manually."
+        )
+        self.chk_tile_auto.toggled.connect(
+            lambda checked: self.spin_tile.setEnabled(not checked)
+        )
+        layout.addWidget(self.chk_tile_auto)
+
         tile_layout = QHBoxLayout()
-        tile_layout.addWidget(QLabel("Tile size (for low-VRAM):"))
+        tile_layout.addWidget(QLabel("Manual tile size:"))
         self.spin_tile = QSpinBox()
         self.spin_tile.setRange(64, 1024)
         self.spin_tile.setSingleStep(32)
@@ -285,7 +295,15 @@ class SettingsDialog(QDialog):
 
         # GPU
         self.cmb_device.setCurrentText(cfg.gpu.device)
-        self.spin_tile.setValue(cfg.gpu.tile_size)
+        # tile_size 0 = Auto; show a sensible manual value when auto is on
+        auto_tile = cfg.gpu.tile_size == 0
+        self.chk_tile_auto.setChecked(auto_tile)
+        self.spin_tile.setEnabled(not auto_tile)
+        if auto_tile:
+            from core.vram_manager import vram_manager
+            self.spin_tile.setValue(max(64, vram_manager.recommended_tile))
+        else:
+            self.spin_tile.setValue(cfg.gpu.tile_size)
         self.chk_nvenc.setChecked(cfg.gpu.use_nvenc)
 
         # Upscaler
@@ -316,7 +334,8 @@ class SettingsDialog(QDialog):
 
         # GPU
         cfg.gpu.device = self.cmb_device.currentText()
-        cfg.gpu.tile_size = self.spin_tile.value()
+        # 0 = Auto; otherwise the manual spinbox value
+        cfg.gpu.tile_size = 0 if self.chk_tile_auto.isChecked() else self.spin_tile.value()
         cfg.gpu.use_nvenc = self.chk_nvenc.isChecked()
         # Apply immediately so the next job honors the new preference
         from core.nvenc import set_nvenc_enabled
