@@ -22,6 +22,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 
 from core.models_registry import MODELS, get_models_dir, model_path, verify_sha256
+from core.theme import mark_hint
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,8 @@ class ModelManagerDialog(QDialog):
             "automatically on first use."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #888; padding: 4px;")
+        info.setStyleSheet("padding: 4px;")
+        mark_hint(info, True)
         layout.addWidget(info)
 
         # Table

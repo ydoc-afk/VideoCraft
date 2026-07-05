@@ -18,6 +18,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
+from core.theme import mark_hint
+
 
 class OutputPanel(QFrame):
     """Output panel — destination, format, codec, quality settings."""
@@ -34,7 +36,7 @@ class OutputPanel(QFrame):
         dest_layout = QHBoxLayout()
         dest_layout.addWidget(QLabel("Destination:"))
         self.lbl_destination = QLabel("Select output folder...")
-        self.lbl_destination.setStyleSheet("color: #888;")
+        mark_hint(self.lbl_destination, True)
         dest_layout.addWidget(self.lbl_destination, 1)
         self.btn_browse = QPushButton("Browse...")
         self.btn_browse.clicked.connect(self._browse_folder)
@@ -121,7 +123,7 @@ class OutputPanel(QFrame):
         if folder:
             self._output_dir = Path(folder)
             self.lbl_destination.setText(folder)
-            self.lbl_destination.setStyleSheet("")
+            mark_hint(self.lbl_destination, False)
 
     def _on_crf_changed(self, value: int) -> None:
         """Update CRF label when slider changes."""
@@ -177,4 +179,4 @@ class OutputPanel(QFrame):
         """Set the output directory programmatically."""
         self._output_dir = path
         self.lbl_destination.setText(str(path))
-        self.lbl_destination.setStyleSheet("")
+        mark_hint(self.lbl_destination, False)

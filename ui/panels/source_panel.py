@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
     QGraphicsPixmapItem,
 )
 from PyQt6.QtCore import Qt, QMimeData
+
+from core.theme import mark_hint
 from PyQt6.QtGui import QPixmap, QPainter
 
 from ui.widgets.drag_drop_area import DragDropArea
@@ -85,7 +87,8 @@ class SourcePanel(QFrame):
 
         # Selected files label
         self.label_files = QLabel("No files selected")
-        self.label_files.setStyleSheet("color: #888; padding: 8px;")
+        self.label_files.setStyleSheet("padding: 8px;")
+        mark_hint(self.label_files, True)
         layout.addWidget(self.label_files)
 
     def _open_files(self) -> None:
