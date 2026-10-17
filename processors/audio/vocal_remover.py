@@ -26,6 +26,17 @@ _AUDIO_FORMATS = {
     "aac": {"codec": "aac", "bitrate": "192k"},
 }
 
+# Encoder per audio output extension. The container is dictated by the output
+# path, so the codec must follow it (pcm into .mp3 makes FFmpeg fail).
+_EXT_ENCODERS = {
+    ".wav": {"codec": "pcm_s16le", "bitrate": None},
+    ".flac": {"codec": "flac", "bitrate": None},
+    ".mp3": {"codec": "libmp3lame", "bitrate": "192k"},
+    ".ogg": {"codec": "libvorbis", "bitrate": "192k"},
+    ".aac": {"codec": "aac", "bitrate": "192k"},
+    ".m4a": {"codec": "aac", "bitrate": "192k"},
+}
+
 
 class VocalRemoverProcessor(BaseProcessor):
     """Demucs stem separation processor.
@@ -115,10 +126,11 @@ class VocalRemoverProcessor(BaseProcessor):
             # Step 4: Output — re-mux into video or audio-only
             yield "[INFO] Creating output..."
             job.progress = 0.8
-            fmt_info = _AUDIO_FORMATS.get(output_format, _AUDIO_FORMATS["wav"])
-
             output_ext = job.output_path.suffix.lower()
-            audio_exts = {".mp3", ".aac", ".flac", ".wav", ".ogg", ".m4a"}
+            audio_exts = set(_EXT_ENCODERS)
+            fmt_info = _EXT_ENCODERS.get(output_ext) or _AUDIO_FORMATS.get(
+                output_format, _AUDIO_FORMATS["wav"]
+            )
 
             ok = True
             if output_ext in audio_exts:
@@ -283,7 +295,7 @@ class VocalRemoverProcessor(BaseProcessor):
             "-i", str(audio_source),
             "-c:v", "copy",
             "-c:a", "aac", "-b:a", "192k",
-            "-map", "0:v",   # video from the source
+            "-map", "0:v?",  # video from the source, if it has any
             "-map", "1:a:0", # processed audio
             "-shortest",
             str(output),

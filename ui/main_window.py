@@ -430,11 +430,13 @@ class MainWindow(QMainWindow):
         worker.finished.connect(lambda job_id=job.id: self._on_worker_finished(job_id))
 
         self._workers[job.id] = worker
+        self.queue.mark_active(job.id)
         worker.start()
 
     def _on_worker_finished(self, job_id: str) -> None:
         """A worker thread finished — release it and dispatch the next job."""
         self._workers.pop(job_id, None)
+        self.queue.mark_finished(job_id)
         if self._queue_active:
             self._dispatch()
         elif not self._workers:

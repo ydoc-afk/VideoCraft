@@ -107,3 +107,21 @@ def test_queue_next_available_none():
     q.add(j)
 
     assert q.next_available() is None
+
+
+def test_cancelled_job_keeps_ml_slot_until_thread_finishes():
+    """A cancelled running ML job still blocks the next ML job until it exits."""
+    q = JobQueue(concurrent_jobs=2)
+    running = Job(source_path=Path("/tmp/a.mp4"), output_path=Path("/tmp/a_out.mp4"), pipeline=["upscaler"])
+    nxt = Job(source_path=Path("/tmp/b.mp4"), output_path=Path("/tmp/b_out.mp4"), pipeline=["upscaler"])
+    q.add(running)
+    q.add(nxt)
+    running.status = "running"
+    q.mark_active(running.id)
+
+    q.cancel(running.id)
+    assert running.status == "cancelled"
+    assert q.can_start(nxt) is False
+
+    q.mark_finished(running.id)
+    assert q.can_start(nxt) is True
