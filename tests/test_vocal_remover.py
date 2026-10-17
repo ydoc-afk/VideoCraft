@@ -46,12 +46,12 @@ def test_remux_maps_video_optionally():
     """Audio-only sources must not fail on a missing video stream."""
     captured = {}
 
-    def fake_run(cmd, **kw):
+    def fake_run(cmd, *a, **kw):
         captured["cmd"] = cmd
         class R: returncode = 0; stderr = ""
         return R()
 
-    with patch("processors.audio.vocal_remover.subprocess.run", fake_run):
+    with patch("processors.audio.vocal_remover.run_cancellable", fake_run):
         VocalRemoverProcessor()._remux_audio(Path("a.mp3"), Path("m.wav"), Path("o.mp4"))
     cmd = captured["cmd"]
     assert cmd[cmd.index("-map") + 1] == "0:v?"
