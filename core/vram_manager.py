@@ -76,6 +76,20 @@ class VRAMManager:
         else:
             logger.warning("No CUDA GPU detected — running on CPU (slow for ML tools)")
 
+    def apply_device_preference(self, preference: str) -> None:
+        """Apply the user's device setting ("auto" | "cuda:N" | "cpu").
+
+        "cpu" forces CPU even when CUDA is present; a "cuda:N" choice or
+        "auto" falls back to CPU when no CUDA device was detected.
+        """
+        if preference == "cpu" or not self.has_cuda:
+            self.device = "cpu"
+        elif preference.startswith("cuda"):
+            self.device = preference
+        else:
+            self.device = "cuda"
+        logger.info("Compute device: %s (setting: %s)", self.device, preference)
+
     @staticmethod
     def _query_free_vram() -> float:
         """Return currently-free VRAM in GB, or 0.0 if it can't be determined."""

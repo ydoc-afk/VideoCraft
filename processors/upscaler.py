@@ -54,6 +54,7 @@ class UpscalerProcessor(FrameProcessor):
 
         try:
             import cv2
+            import torch
             from basicsr.archs.rrdbnet_arch import RRDBNet
             from realesrgan import RealESRGANer
         except ImportError as e:
@@ -82,6 +83,7 @@ class UpscalerProcessor(FrameProcessor):
             tile_pad=10,
             pre_pad=0,
             half=vram_manager.device != "cpu",
+            device=torch.device(vram_manager.device),
         )
         logger.info(
             "Loaded %s (scale %dx) — tile=%d on %s",

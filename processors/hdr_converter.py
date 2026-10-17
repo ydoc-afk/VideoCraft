@@ -1,4 +1,4 @@
-"""HDR converter — SDR→HDR10 via FFmpeg zscale + tonemap filters."""
+"""HDR converter — SDR→HDR10 via FFmpeg zscale filters."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from core.ffmpeg import ffmpeg_cmd
+from core.ffmpeg import ffmpeg_cmd, with_threads
 from core.job import Job
 from processors.base_processor import BaseProcessor
 from processors.converter import backup_existing, ffprobe_duration
@@ -16,21 +16,17 @@ logger = logging.getLogger(__name__)
 
 _TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+[\.\d]+)")
 
-# Tonemap algorithms supported by FFmpeg
-_TONEMAP_ALGOS = {"hable", "reinhard", "mobius"}
-
 # HDR target formats
 _HDR_FORMATS = {"hdr10", "hlg"}
 
 
 class HDRConverterProcessor(BaseProcessor):
-    """SDR→HDR10 converter using FFmpeg zscale + tonemap.
+    """SDR→HDR10 converter using FFmpeg zscale.
 
     No ML model needed — pure FFmpeg filter chain.
     Settings:
         hdr_format: "hdr10" | "hlg" (default: "hdr10")
         peak_nits: int (default: 1000)
-        tonemap: "hable" | "reinhard" | "mobius" (default: "hable")
     """
 
     def process(self, job: Job):
@@ -152,7 +148,7 @@ class HDRConverterProcessor(BaseProcessor):
             "-c:a", "copy",
             str(job.output_path),
         ]
-        return cmd
+        return with_threads(cmd)
 
 
 def _parse_time(line: str) -> float | None:

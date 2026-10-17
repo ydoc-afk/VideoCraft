@@ -22,7 +22,6 @@ def test_default_config_values():
     assert cfg.colorizer.saturation == 1.0
     assert cfg.colorizer.backend == "ddcolor"
     assert cfg.hdr.peak_nits == 1000
-    assert cfg.hdr.tonemap == "hable"
 
 
 def test_save_and_load_roundtrip(tmp_path):

@@ -494,8 +494,7 @@ For now, implement DDColor as specified; add Deoldify as a future option.
     -colorspace bt2020nc output_hdr.mp4
   ```
 
-- **Settings UI**: Target format (HDR10 / HLG), peak brightness nits (400/1000/4000),
-  tonemap algorithm (hable / reinhard / mobius)
+- **Settings UI**: Target format (HDR10 / HLG), peak brightness nits (400/1000/4000)
 
 ### Vocal Remover (`processors/audio/vocal_remover.py`)
 
@@ -580,7 +579,6 @@ saturation = 1.0
 
 [hdr]
 peak_nits = 1000
-tonemap = "hable"
 ```
 
 ### GUI Theme & Style (qt-material)
@@ -704,7 +702,7 @@ def append_log(self, line: str):
 
 - **Model**: SCUNet (scunet_color_real_psnr for real-world noise/compression artifacts)
 - **Pipeline**: Same frame-extraction → inference → recompose as upscaler
-- **Settings UI**: Noise level slider (1–50), artifact removal toggle (JPEG/blocking artifacts)
+- **Settings UI**: Model selector (real-world / Gaussian noise)
 
 ### 3. Colorizer (`processors/colorizer.py`)
 

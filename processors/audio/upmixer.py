@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from core.ffmpeg import ffmpeg_cmd
+from core.ffmpeg import ffmpeg_cmd, with_threads
 from core.job import Job
 from processors.base_processor import BaseProcessor
 from processors.converter import backup_existing, ffprobe_duration
@@ -157,7 +157,7 @@ class AudioUpmixerProcessor(BaseProcessor):
             "-b:a", bitrate,
             str(job.output_path),
         ]
-        return cmd
+        return with_threads(cmd)
 
 
 def _parse_time(line: str) -> float | None:

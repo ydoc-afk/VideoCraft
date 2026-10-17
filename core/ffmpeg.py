@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 _ffmpeg_path: str = "ffmpeg"
+_threads: int = 0  # 0 = let FFmpeg decide
 
 
 def set_ffmpeg_path(path: str | Path) -> None:
@@ -36,3 +37,16 @@ def ffprobe_cmd() -> str:
         if sibling.exists():
             return str(sibling)
     return "ffprobe"
+
+
+def set_threads(count: int) -> None:
+    """Set the FFmpeg encoder thread count (0 = auto)."""
+    global _threads
+    _threads = max(0, int(count))
+
+
+def with_threads(cmd: list[str]) -> list[str]:
+    """Insert `-threads N` before the output file (last arg) when configured."""
+    if _threads <= 0:
+        return cmd
+    return [*cmd[:-1], "-threads", str(_threads), cmd[-1]]

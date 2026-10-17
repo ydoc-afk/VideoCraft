@@ -65,6 +65,7 @@ def test_upscaler_setup_loads_model_once():
     mock_realesrgan_mod = MagicMock()
     mock_basicsr_archs = MagicMock()
     mock_cv2 = MagicMock()
+    mock_torch = MagicMock()
 
     mocks = {
         "realesrgan": mock_realesrgan_mod,
@@ -72,6 +73,7 @@ def test_upscaler_setup_loads_model_once():
         "basicsr.archs": mock_basicsr_archs,
         "basicsr.archs.rrdbnet_arch": mock_basicsr_archs.rrdbnet_arch,
         "cv2": mock_cv2,
+        "torch": mock_torch,
     }
 
     with patch.dict("sys.modules", mocks):
@@ -80,6 +82,8 @@ def test_upscaler_setup_loads_model_once():
 
     assert proc._upsampler is not None
     mock_realesrgan_mod.RealESRGANer.assert_called_once()
+    # The configured compute device is passed through to Real-ESRGAN
+    assert "device" in mock_realesrgan_mod.RealESRGANer.call_args.kwargs
 
     # Frames now go through the preloaded model
     proc._upsampler.enhance.return_value = (b"\x00" * 10, None)

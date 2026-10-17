@@ -8,7 +8,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from core.ffmpeg import ffmpeg_cmd, ffprobe_cmd
+from core.ffmpeg import ffmpeg_cmd, ffprobe_cmd, with_threads
 from core.job import Job
 from core.nvenc import video_encode_args
 from processors.base_processor import BaseProcessor
@@ -178,7 +178,7 @@ class ConverterProcessor(BaseProcessor):
             vf = [f"scale={resolution}"] if resolution else []
             vf.append(f"fps={fps or 15}")
             cmd.extend(["-vf", ",".join(vf), "-an", str(job.output_path)])
-            return cmd
+            return with_threads(cmd)
 
         # WebM only holds VP8/VP9/AV1 video and Vorbis/Opus audio — swap in
         # compatible codecs rather than letting FFmpeg reject the mux.
@@ -216,7 +216,7 @@ class ConverterProcessor(BaseProcessor):
 
         # Output
         cmd.append(str(job.output_path))
-        return cmd
+        return with_threads(cmd)
 
     @staticmethod
     def _parse_time(line: str) -> float | None:
