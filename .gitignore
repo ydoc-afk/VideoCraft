@@ -35,3 +35,30 @@ config.toml
 .vscode/
 .DS_Store
 Thumbs.db
+
+# ── Secrets / credentials (safety net — none are used today) ──
+.env
+.env.*
+*.pem
+*.key
+
+# ── Local assistant settings ──
+.claude/
+
+# ── Model weights & partial downloads anywhere in the tree ──
+*.pth
+*.pt
+*.onnx
+*.part
+
+# ── Release artifacts ──
+*.AppImage
+
+# ── Test media / coverage ──
+*.mp4
+*.mkv
+*.mov
+*.wav
+*.flac
+.coverage
+htmlcov/
