@@ -89,6 +89,19 @@ class JobQueue:
                     return job
         return None
 
+    def next_startable(self) -> Job | None:
+        """Return the first queued job that concurrency limits allow to start.
+
+        Unlike next_available(), a queued job that must wait (e.g. an ML job
+        while another ML job runs) doesn't block later jobs that can run.
+        """
+        with self._lock:
+            queued = [j for j in self.jobs if j.status == "queued"]
+        for job in queued:
+            if self.can_start(job):
+                return job
+        return None
+
     def running_count(self) -> int:
         """Count jobs currently running (including cancelled ones still stopping)."""
         with self._lock:
