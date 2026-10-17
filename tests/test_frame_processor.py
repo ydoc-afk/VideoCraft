@@ -100,3 +100,36 @@ def test_reencode_cmd_pads_to_even_dimensions():
         Path("in/%06d.png"), Path("out"), Path("o.mp4"), Path("s.mp4"),
     )
     assert cmd[cmd.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
+
+
+def test_frame_processor_backs_up_existing_output(tmp_path):
+    """An existing output file is renamed, not silently overwritten."""
+    from unittest.mock import patch
+    from core.job import Job
+    from processors.frame_processor import FrameProcessor
+
+    class Copy(FrameProcessor):
+        def process_frame(self, frame_path, output_path, job):
+            output_path.write_bytes(frame_path.read_bytes())
+
+    out = tmp_path / "clip_output.mp4"
+    out.write_bytes(b"old result")
+    job = Job(source_path=tmp_path / "in.mp4", output_path=out, pipeline=["denoiser"])
+
+    def fake_extract(self, source, pattern, duration=0.0):
+        (Path(pattern).parent / "000001.png").write_bytes(b"x")
+        return 1
+
+    def fake_reencode(self, **kw):
+        kw["output_path"].write_bytes(b"new result")
+        return True
+
+    with patch.object(Copy, "extract_frames", fake_extract), \
+         patch.object(Copy, "reencode_video", fake_reencode), \
+         patch("processors.frame_processor.ffprobe_fps", return_value="24"), \
+         patch("processors.frame_processor.ffprobe_duration", return_value=1.0):
+        list(Copy().process(job))
+
+    assert out.read_bytes() == b"new result"
+    backups = [p for p in tmp_path.glob("clip_output_*.mp4")]
+    assert len(backups) == 1 and backups[0].read_bytes() == b"old result"
