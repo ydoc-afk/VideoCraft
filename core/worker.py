@@ -73,9 +73,12 @@ class Worker(QThread):
         """Execute the job's pipeline (single or multi-step)."""
         self.job.status = "running"
         pipeline = self.job.pipeline
+        # Processors read job.source_path / job.output_path, so chaining
+        # works by swapping them per step; restore both when we're done.
+        original_source = self.job.source_path
+        original_output = self.job.output_path
 
         try:
-            current_source = self.job.source_path
             total_steps = len(pipeline)
             last_error = ""
 
@@ -90,11 +93,10 @@ class Worker(QThread):
                     f"[INFO] Step {step_num}/{total_steps}: {tool_name}"
                 )
 
-                # For multi-step pipelines, use intermediate files
-                if step_idx > 0:
-                    # Previous step's output is this step's input
-                    intermediate = self.job.intermediate_files[-1] if self.job.intermediate_files else current_source
-                    current_source = intermediate
+                # Previous step's output is this step's input
+                if step_idx > 0 and self.job.intermediate_files:
+                    self.job.source_path = self.job.intermediate_files[-1]
+                self.job.progress = 0.0
 
                 processor = get_processor(tool_name)
 
@@ -106,10 +108,9 @@ class Worker(QThread):
                     step_output = temp_dir / intermediate_name
                     self.job.intermediate_files.append(step_output)
                     # Temporarily swap output for this step
-                    original_output = self.job.output_path
                     self.job.output_path = step_output
                 else:
-                    step_output = self.job.output_path
+                    self.job.output_path = original_output
 
                 # Run the processor. The processor is the sole writer of
                 # job.progress (its own per-step 0.0–1.0 value); the worker
@@ -136,10 +137,6 @@ class Worker(QThread):
                     self.job_failed.emit(self.job, last_error or f"{tool_name} failed")
                     return
 
-                # Restore output path for next step
-                if step_idx < total_steps - 1:
-                    self.job.output_path = original_output
-
             self.job.status = "done"
             self.job.progress = 1.0
             self.progress.emit(1.0)
@@ -150,6 +147,8 @@ class Worker(QThread):
             self.job_failed.emit(self.job, str(e))
             logger.error("Job %s failed: %s", self.job.id, e, exc_info=True)
         finally:
+            self.job.source_path = original_source
+            self.job.output_path = original_output
             self._cleanup_temps()
             # Clean intermediate files
             self._cleanup_intermediates()
