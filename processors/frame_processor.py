@@ -14,6 +14,7 @@ from pathlib import Path
 from core.ffmpeg import ffmpeg_cmd, ffprobe_cmd
 from core.job import Job
 from core.nvenc import video_encode_args
+from core.process import Cancelled, run_cancellable
 from core.vram_manager import vram_manager
 from processors.base_processor import BaseProcessor
 from processors.converter import ffprobe_duration
@@ -63,6 +64,7 @@ class FrameProcessor(BaseProcessor, ABC):
 
     def __init__(self) -> None:
         self._temp_dir: Path | None = None
+        self._is_cancelled = lambda: False
 
     def process(self, job: Job):
         """Run the full frame-based pipeline.
@@ -75,6 +77,7 @@ class FrameProcessor(BaseProcessor, ABC):
         6. Cleanup
         """
         vram_manager.clear_cache()
+        self._is_cancelled = lambda: job.cancelled
 
         if job.cancelled:
             yield "[INFO] Job cancelled by user"
@@ -140,6 +143,8 @@ class FrameProcessor(BaseProcessor, ABC):
             job.progress = 1.0
             yield f"[SUCCESS] Complete: {job.output_path.name}"
 
+        except Cancelled:
+            yield "[INFO] Job cancelled by user"
         except Exception as e:
             yield f"[ERROR] Processing failed: {e}"
             job.status = "failed"
@@ -173,7 +178,7 @@ class FrameProcessor(BaseProcessor, ABC):
         timeout = max(300.0, duration * 20)
         logger.info("Extracting frames: %s", source.name)
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            result = run_cancellable(cmd, self._is_cancelled, timeout)
             if result.returncode != 0:
                 logger.error("FFmpeg extract failed: %s", result.stderr[-500:])
                 return 0
@@ -210,7 +215,7 @@ class FrameProcessor(BaseProcessor, ABC):
         ]
         timeout = max(600.0, duration * 30)
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            result = run_cancellable(cmd, self._is_cancelled, timeout)
             if result.returncode != 0:
                 logger.error("Re-encoding failed: %s", result.stderr[-500:])
                 return False

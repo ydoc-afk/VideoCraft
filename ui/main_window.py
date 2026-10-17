@@ -463,6 +463,6 @@ class MainWindow(QMainWindow):
             for worker in workers:
                 worker.job.cancelled = True
             for worker in workers:
-                if not worker.wait(5000):
+                if not worker.wait(15000):
                     logger.warning("Worker for job %s did not stop in time", worker.job.id)
         event.accept()
