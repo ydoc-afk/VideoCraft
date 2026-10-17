@@ -103,13 +103,13 @@ def test_converter_process_yields_lines():
     # Mock subprocess.Popen to avoid actually running FFmpeg
     mock_proc = MagicMock()
     mock_proc.poll.return_value = 0
-    # stderr is a binary file-like object with readline()
+    # stderr is a text-mode file-like object with readline()
     mock_stderr = MagicMock()
     mock_stderr.readline.side_effect = [
-        b"ffmpeg version 5.0\n",
-        b"frame= 100 fps= 30 time=00:00:10.00 bitrate=5000.0kbits/s\n",
-        b"frame= 200 fps= 30 time=00:00:20.00 bitrate=5000.0kbits/s\n",
-        b"",  # EOF
+        "ffmpeg version 5.0\n",
+        "frame= 100 fps= 30 time=00:00:10.00 bitrate=5000.0kbits/s\n",
+        "frame= 200 fps= 30 time=00:00:20.00 bitrate=5000.0kbits/s\n",
+        "",  # EOF
     ]
     mock_proc.stderr = mock_stderr
     mock_proc.wait.return_value = 0
@@ -143,3 +143,16 @@ def test_converter_cancel_stops_subprocess():
 
     # Should have yielded a cancelled message
     assert any("cancelled" in l.lower() for l in lines)
+
+
+def test_webm_swaps_in_compatible_codecs():
+    """H.264/AAC can't go in WebM — the command must use VP9 + Opus."""
+    job = Job(
+        source_path=Path("/tmp/in.mp4"), output_path=Path("/tmp/out.webm"),
+        pipeline=["converter"],
+        params={"container": "webm", "video_codec": "h264", "audio_codec": "aac"},
+    )
+    with patch("core.nvenc.nvenc_encoder_for", return_value=None):
+        cmd = ConverterProcessor()._build_command(job)
+    assert cmd[cmd.index("-c:v") + 1] == "libvpx-vp9"
+    assert cmd[cmd.index("-c:a") + 1] == "libopus"
