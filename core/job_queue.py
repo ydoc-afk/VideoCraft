@@ -29,6 +29,23 @@ class JobQueue:
         self.jobs: list[Job] = []
         self.concurrent_jobs = concurrent_jobs
         self._lock = threading.Lock()
+        # Jobs whose worker thread is still alive. A cancelled job flips to
+        # "cancelled" immediately but keeps occupying its slot until the
+        # thread actually exits (it may still be holding the GPU).
+        self._active: set[str] = set()
+
+    def mark_active(self, job_id: str) -> None:
+        """Record that a worker thread is running for this job."""
+        with self._lock:
+            self._active.add(job_id)
+
+    def mark_finished(self, job_id: str) -> None:
+        """Record that the job's worker thread has exited."""
+        with self._lock:
+            self._active.discard(job_id)
+
+    def _occupies_slot(self, job: Job) -> bool:
+        return job.status == "running" or job.id in self._active
 
     def add(self, job: Job) -> None:
         """Add a job to the end of the queue."""
@@ -73,15 +90,15 @@ class JobQueue:
         return None
 
     def running_count(self) -> int:
-        """Count jobs currently running."""
+        """Count jobs currently running (including cancelled ones still stopping)."""
         with self._lock:
-            return sum(1 for j in self.jobs if j.status == "running")
+            return sum(1 for j in self.jobs if self._occupies_slot(j))
 
     def ml_running(self) -> bool:
         """Check if any ML job is currently running."""
         with self._lock:
             for j in self.jobs:
-                if j.status == "running" and is_ml_job(j):
+                if self._occupies_slot(j) and is_ml_job(j):
                     return True
         return False
 
