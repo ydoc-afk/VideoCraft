@@ -273,7 +273,7 @@ pytest tests/ -v
 
 ## License
 
-MIT
+VideoCraft is free software, licensed under the [GNU General Public License v3.0](LICENSE). Third-party components keep their own licenses — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Acknowledgments
 
