@@ -308,10 +308,16 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.append_log("[INFO] Settings saved")
 
-            # Apply a changed FFmpeg path immediately
+            # Apply a changed FFmpeg path immediately; clearing the override
+            # falls back to the binary detected at startup.
+            from core.ffmpeg import set_ffmpeg_path
             if self.config.ffmpeg.path and self.config.ffmpeg.path != "ffmpeg":
-                from core.ffmpeg import set_ffmpeg_path
                 set_ffmpeg_path(self.config.ffmpeg.path)
+            else:
+                set_ffmpeg_path(self.ffmpeg_path)
+
+            # Concurrency applies to the live queue, not just after a restart
+            self.queue.concurrent_jobs = self.config.general.concurrent_jobs
 
             # Runtime theme switching (compare against the pre-dialog theme;
             # the dialog has already written the new one into self.config)

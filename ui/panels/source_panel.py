@@ -104,7 +104,7 @@ class SourcePanel(QFrame):
         )
         for f in files:
             p = Path(f)
-            if p.suffix.lower() in _MEDIA_EXTS:
+            if p.suffix.lower() in _MEDIA_EXTS and p not in self._selected_files:
                 self._selected_files.append(p)
         self._update_display()
 
@@ -113,8 +113,8 @@ class SourcePanel(QFrame):
         folder = QFileDialog.getExistingDirectory(self, "Open Folder")
         if not folder:
             return
-        for p in Path(folder).iterdir():
-            if p.suffix.lower() in _MEDIA_EXTS:
+        for p in sorted(Path(folder).iterdir()):
+            if p.suffix.lower() in _MEDIA_EXTS and p not in self._selected_files:
                 self._selected_files.append(p)
         self._update_display()
 
