@@ -2,6 +2,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![PyQt6](https://img.shields.io/badge/UI-PyQt6-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![CI](https://github.com/ydoc-afk/VideoCraft/actions/workflows/ci.yml/badge.svg)](https://github.com/ydoc-afk/VideoCraft/actions/workflows/ci.yml)
 
 A cross-platform desktop application for AI-powered video and audio enhancement. Chain multiple tools together in a queue-based pipeline with real-time progress tracking, GPU-accelerated encoding, and automatic VRAM management.
 
@@ -42,7 +44,38 @@ A cross-platform desktop application for AI-powered video and audio enhancement.
 - **Themed UI** — 16+ dark and light themes via qt-material with runtime switching
 - **Graceful cancellation** — kills FFmpeg/ML inference, cleans temp files, frees CUDA cache
 
+## Status
+
+VideoCraft is **early software (0.x)** — expect rough edges, and please report
+what you find in the [issue tracker](https://github.com/ydoc-afk/VideoCraft/issues).
+
+- **Working today:** Format Converter, HDR Converter and Audio Upmixer (pure FFmpeg).
+- **Needs optional ML packages and a GPU for good speed:** Upscaler, Denoiser and Vocal Remover.
+  If the packages are missing, these tools **copy the input through unchanged** and log a
+  warning — check the log if the output looks identical to the input.
+- **Colorizer is a placeholder:** the DDColor / Deoldify inference packages are not available
+  on PyPI yet, so it currently passes frames through unchanged.
+- Model downloads are not checksum-verified yet.
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed between versions.
+
 ## Installation
+
+### Download (Linux AppImage)
+
+Grab `VideoCraft-x86_64.AppImage` from the
+[Releases page](https://github.com/ydoc-afk/VideoCraft/releases), then:
+
+```bash
+sha256sum -c SHA256SUMS        # optional: verify the download
+chmod +x VideoCraft-x86_64.AppImage
+./VideoCraft-x86_64.AppImage
+```
+
+The AppImage bundles a static FFmpeg, so the **Converter, HDR Converter and Audio Upmixer work
+out of the box**. It does **not** include PyTorch or the other ML packages, so the AI tools
+(Upscaler, Denoiser, Colorizer, Vocal Remover) only pass input through. To use them, run from
+source as below.
 
 ### Prerequisites
 
@@ -97,7 +130,7 @@ The app checks for FFmpeg on startup (bundled in `assets/bin/` first, then PATH)
 1. **Open files** — use File → Open, Open Folder, or drag-and-drop onto the window
 2. **Select a tool** — choose from the Tools panel tabs (Upscaler, Denoiser, Colorizer, etc.)
 3. **Configure settings** — adjust tool-specific parameters (scale factor, model, quality, etc.)
-4. **Set output** — pick an output directory and format in the Output panel
+4. **Set output** — pick the destination folder in the Output panel (format, codec and quality for conversions live on the **Convert** tab)
 5. **Add to queue** — selected files are added with the active tool's settings
 6. **Start** — press F5 or click Start to begin processing
 
@@ -198,11 +231,12 @@ VideoCraft
 ├── main.py                  # Entry point: FFmpeg check, theme, window
 ├── core/
 │   ├── config.py            # TOML config (platform-specific paths)
-│   ├── ffmpeg.py            # FFmpeg/ffprobe binary resolution
+│   ├── ffmpeg.py            # FFmpeg/ffprobe resolution, thread count
 │   ├── job.py               # Job dataclass (pipeline, params, status)
 │   ├── job_queue.py         # Thread-safe queue with ML concurrency limits
 │   ├── models_registry.py   # Model metadata, download, verification
 │   ├── nvenc.py             # NVENC detection and encoder selection
+│   ├── process.py           # Cancellable subprocess runner
 │   ├── theme.py             # qt-material theme + custom QSS
 │   ├── vram_manager.py      # CUDA VRAM detection and tile sizing
 │   └── worker.py            # QThread worker with multi-step pipelines
@@ -222,7 +256,7 @@ VideoCraft
 │   ├── main_window.py       # QMainWindow with splitter layout
 │   ├── panels/
 │   │   ├── source_panel.py  # File picker with ffprobe metadata
-│   │   ├── output_panel.py  # Output dir, format, codec, quality
+│   │   ├── output_panel.py  # Destination folder
 │   │   ├── tools_panel.py   # Tabbed tool settings
 │   │   ├── queue_panel.py   # Job table with progress bars
 │   │   └── log_panel.py     # Color-coded log output
@@ -246,7 +280,7 @@ VideoCraft
 - **FFmpeg via `subprocess.Popen`** — never `os.system()`; all calls wrapped with timeout and cancellation
 - **Frame processors share a common base** — `FrameProcessor` handles extraction, re-encoding, temp cleanup, and VRAM cache management
 - **NVENC is probed at runtime** — a throwaway encode to `null` verifies each encoder actually works on the hardware
-- **Graceful degradation** — missing ML deps fall back to pass-through; missing NVENC falls back to software encoding
+- **Graceful degradation** — missing ML deps fall back to pass-through (with a logged warning); missing NVENC falls back to software encoding
 
 ## Development
 
@@ -255,7 +289,22 @@ VideoCraft
 ```bash
 pip install pytest
 pytest tests/ -v
+
+# headless machine (no display):
+QT_QPA_PLATFORM=offscreen pytest tests/ -v
 ```
+
+GitHub Actions runs the same suite on Python 3.11 and 3.12 for every push and pull request.
+
+### Cutting a Release
+
+1. Bump the version in `main.py` (`setApplicationVersion`) and move the `[Unreleased]` entries in
+   `CHANGELOG.md` under the new version heading.
+2. Merge to `main`, then push a matching tag: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The **Release** workflow runs the tests, builds the AppImage (with a static FFmpeg), and
+   publishes a GitHub release (marked pre-release for `0.x`). The build fails if the tag does not
+   match the app version. Use *Actions → Release → Run workflow* for a dry run that only uploads
+   the AppImage as a build artifact.
 
 ### Project Structure for Contributors
 

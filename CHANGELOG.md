@@ -55,6 +55,9 @@ All notable changes to VideoCraft are documented here. The format follows
 - GPL-3.0 license and third-party notices.
 - GitHub Actions workflow that runs the test suite on every push and pull
   request.
+- Release workflow: pushing a `v*` tag runs the tests, builds the Linux
+  AppImage (with a bundled static FFmpeg) and publishes a GitHub release.
+- README: project status, AppImage download instructions, and release steps.
 
 ## Known limitations
 - The **colorizer** passes frames through unchanged: the DDColor and Deoldify
@@ -62,4 +65,6 @@ All notable changes to VideoCraft are documented here. The format follows
 - Model downloads are not checksum-verified yet.
 - Model downloads and a single frame's inference cannot be interrupted
   mid-call.
+- The AppImage does not include PyTorch or the other ML packages, so the AI
+  tools only pass input through there; run from source to use them.
 - Only a Linux AppImage build is set up; it has not been published yet.
