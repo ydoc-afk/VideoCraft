@@ -48,6 +48,7 @@ _AUDIO_CODECS = {
     "flac": "flac",
     "pcm_s16le": "pcm_s16le",
     "copy": "copy",
+    "opus": "libopus",
     "none": None,
 }
 
@@ -101,11 +102,14 @@ class ConverterProcessor(BaseProcessor):
 
         proc = None
         try:
+            # Text mode: universal newlines turn FFmpeg's "\r"-terminated
+            # status lines into separate lines, so progress updates (and
+            # cancellation checks) happen per update, not once at the end.
             proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                text=True, encoding="utf-8", errors="replace", bufsize=1,
             )
 
-            # Read stderr line-by-line with decode fallback
             stderr_raw = proc.stderr
             try:
                 while True:
@@ -113,13 +117,9 @@ class ConverterProcessor(BaseProcessor):
                         yield "[INFO] Job cancelled by user"
                         return
 
-                    line_bytes = stderr_raw.readline()
-                    if not line_bytes:
+                    line = stderr_raw.readline()
+                    if not line:
                         break
-                    try:
-                        line = line_bytes.decode("utf-8", errors="replace")
-                    except Exception:
-                        line = ""
 
                     # Parse progress from time= field
                     if total_duration:
@@ -179,6 +179,14 @@ class ConverterProcessor(BaseProcessor):
             vf.append(f"fps={fps or 15}")
             cmd.extend(["-vf", ",".join(vf), "-an", str(job.output_path)])
             return cmd
+
+        # WebM only holds VP8/VP9/AV1 video and Vorbis/Opus audio — swap in
+        # compatible codecs rather than letting FFmpeg reject the mux.
+        if container == "webm":
+            if video_codec not in ("vp9", "av1", "copy"):
+                video_codec = "vp9"
+            if audio_codec in ("aac", "mp3", "flac", "pcm_s16le"):
+                audio_codec = "opus"
 
         # Video filter (incompatible with stream copy — filters imply re-encode)
         vf_parts = []
