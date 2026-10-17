@@ -20,6 +20,10 @@ from processors.converter import ffprobe_duration
 
 logger = logging.getLogger(__name__)
 
+# yuv420p needs even width/height; odd-sized sources (kept as-is by the
+# denoiser/colorizer) would otherwise fail the final encode.
+_EVEN_DIMS_FILTER = "pad=ceil(iw/2)*2:ceil(ih/2)*2"
+
 _FPS_RE = re.compile(r"^\d+(/\d+)?$")
 
 
@@ -196,6 +200,7 @@ class FrameProcessor(BaseProcessor, ABC):
             "-i", input_pattern,
             "-i", str(source_path),
             # NVENC (h264_nvenc) when a usable GPU is present, else libx264.
+            "-vf", _EVEN_DIMS_FILTER,
             *video_encode_args("h264", 18, "libx264"),
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
@@ -251,6 +256,7 @@ class FrameProcessor(BaseProcessor, ABC):
             "-framerate", fps,
             "-i", str(input_pattern),
             "-i", str(source_path),
+            "-vf", _EVEN_DIMS_FILTER,
             *video_encode_args("h264", 18, "libx264"),
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",

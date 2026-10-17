@@ -90,3 +90,13 @@ def _make_proc():
         def process_frame(self, frame_path, output_path, job):
             pass
     return TestProcessor()
+
+
+def test_reencode_cmd_pads_to_even_dimensions():
+    """yuv420p needs even dimensions, so the re-encode pads odd-sized frames."""
+    from processors.frame_processor import FrameProcessor
+    from pathlib import Path
+    cmd = FrameProcessor._build_reencode_cmd(
+        Path("in/%06d.png"), Path("out"), Path("o.mp4"), Path("s.mp4"),
+    )
+    assert cmd[cmd.index("-vf") + 1] == "pad=ceil(iw/2)*2:ceil(ih/2)*2"
