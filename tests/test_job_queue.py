@@ -125,3 +125,20 @@ def test_cancelled_job_keeps_ml_slot_until_thread_finishes():
 
     q.mark_finished(running.id)
     assert q.can_start(nxt) is True
+
+
+def test_next_startable_skips_blocked_ml_job():
+    """A waiting ML job must not block a CPU-only job behind it."""
+    q = JobQueue(concurrent_jobs=2)
+    running = Job(source_path=Path("/tmp/a.mp4"), output_path=Path("/tmp/a_out.mp4"), pipeline=["upscaler"])
+    blocked = Job(source_path=Path("/tmp/b.mp4"), output_path=Path("/tmp/b_out.mp4"), pipeline=["denoiser"])
+    cpu = Job(source_path=Path("/tmp/c.mp4"), output_path=Path("/tmp/c_out.mp4"), pipeline=["converter"])
+    for j in (running, blocked, cpu):
+        q.add(j)
+    running.status = "running"
+
+    assert q.next_available() is blocked  # head of the line can't start...
+    assert q.next_startable() is cpu      # ...but the converter can
+
+    cpu.status = "running"
+    assert q.next_startable() is None

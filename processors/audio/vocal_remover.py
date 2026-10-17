@@ -12,7 +12,7 @@ from pathlib import Path
 from core.ffmpeg import ffmpeg_cmd
 from core.job import Job
 from processors.base_processor import BaseProcessor
-from processors.converter import ffprobe_duration
+from processors.converter import backup_existing, ffprobe_duration
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ class VocalRemoverProcessor(BaseProcessor):
                 output_format, _AUDIO_FORMATS["wav"]
             )
 
+            backup_existing(job.output_path)
             ok = True
             if output_ext in audio_exts:
                 # Audio-only output

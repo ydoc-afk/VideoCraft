@@ -345,15 +345,20 @@ class MainWindow(QMainWindow):
         if self._queue_active:
             return  # already dispatching
 
-        # Pre-flight check before the first queued ML job
-        ml_job = next(
-            (j for j in self.queue.jobs if j.status == "queued" and is_ml_job(j)),
-            None,
-        )
-        if ml_job is not None:
+        # Pre-flight every distinct queued ML setup (pipeline + output disk),
+        # not just the first job — later jobs may need other models or disks.
+        seen: set[tuple] = set()
+        for job in list(self.queue.jobs):
+            if job.status != "queued" or not is_ml_job(job):
+                continue
+            key = (tuple(job.pipeline), job.output_path.parent)
+            if key in seen:
+                continue
+            seen.add(key)
+
             from ui.dialogs.preflight_dialog import PreflightDialog
 
-            dialog = PreflightDialog(ml_job, self)
+            dialog = PreflightDialog(job, self)
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 self.append_log("[INFO] Queue start cancelled at pre-flight check")
                 return
@@ -402,12 +407,12 @@ class MainWindow(QMainWindow):
             return
 
         while True:
-            job = self.queue.next_available()
-            if job is None or not self.queue.can_start(job):
+            job = self.queue.next_startable()
+            if job is None:
                 break
             self._start_worker(job)
 
-        if job is None and not self._workers:
+        if not self._workers and self.queue.next_available() is None:
             # Nothing queued and nothing running → queue is finished
             self._queue_active = False
             self.queue_panel.stop_timer()

@@ -16,7 +16,7 @@ from core.job import Job
 from core.nvenc import video_encode_args
 from core.vram_manager import vram_manager
 from processors.base_processor import BaseProcessor
-from processors.converter import ffprobe_duration
+from processors.converter import backup_existing, ffprobe_duration
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +127,7 @@ class FrameProcessor(BaseProcessor, ABC):
 
             # Re-encode
             yield "[INFO] Re-encoding video..."
+            backup_existing(job.output_path)
             if not self.reencode_video(
                 input_pattern=output_pattern,
                 output_path=job.output_path,

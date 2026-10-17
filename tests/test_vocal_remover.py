@@ -55,3 +55,10 @@ def test_remux_maps_video_optionally():
         VocalRemoverProcessor()._remux_audio(Path("a.mp3"), Path("m.wav"), Path("o.mp4"))
     cmd = captured["cmd"]
     assert cmd[cmd.index("-map") + 1] == "0:v?"
+
+
+def test_vocal_remover_backs_up_existing_output(tmp_path):
+    out = tmp_path / "out.mp3"
+    out.write_bytes(b"old result")
+    _run(tmp_path, "out.mp3")
+    assert len(list(tmp_path.glob("out_*.mp3"))) == 1

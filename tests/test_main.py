@@ -129,3 +129,30 @@ def test_find_ffmpeg_none(tmp_path):
     with patch.object(main, "project_root", tmp_path), \
          patch("main.shutil.which", return_value=None):
         assert main.find_ffmpeg() is None
+
+
+def test_start_queue_preflights_each_distinct_ml_setup():
+    """Pre-flight runs for every distinct queued ML pipeline, not just the first."""
+    from unittest.mock import patch
+    from PyQt6.QtWidgets import QDialog
+    from ui.main_window import MainWindow
+    from core.job import Job
+
+    win = MainWindow(ffmpeg_path=Path("ffmpeg"))
+    for tool in ("upscaler", "upscaler", "colorizer", "converter"):
+        win.queue.add(Job(
+            source_path=Path("/tmp/in.mp4"), output_path=Path("/tmp/out/o.mp4"),
+            pipeline=[tool],
+        ))
+
+    checked: list[list[str]] = []
+
+    def fake_exec(self):
+        checked.append(self.job.pipeline)
+        return QDialog.DialogCode.Accepted
+
+    with patch("ui.dialogs.preflight_dialog.PreflightDialog.exec", fake_exec), \
+         patch.object(MainWindow, "_dispatch"):
+        win._on_start_queue()
+
+    assert checked == [["upscaler"], ["colorizer"]]
