@@ -11,6 +11,7 @@ from pathlib import Path
 
 from core.ffmpeg import ffmpeg_cmd
 from core.job import Job
+from core.process import Cancelled, run_cancellable
 from processors.base_processor import BaseProcessor
 from processors.converter import backup_existing, ffprobe_duration
 
@@ -55,9 +56,11 @@ class VocalRemoverProcessor(BaseProcessor):
 
     def __init__(self) -> None:
         self._temp_dir: Path | None = None
+        self._is_cancelled = lambda: False
 
     def process(self, job: Job):
         """Run vocal removal / stem separation, yielding log lines."""
+        self._is_cancelled = lambda: job.cancelled
         if job.cancelled:
             yield "[INFO] Job cancelled by user"
             return
@@ -152,6 +155,8 @@ class VocalRemoverProcessor(BaseProcessor):
             job.progress = 1.0
             yield f"[SUCCESS] Vocal removal complete: {job.output_path.name}"
 
+        except Cancelled:
+            yield "[INFO] Job cancelled by user"
         except Exception as e:
             yield f"[ERROR] Vocal removal failed: {e}"
             job.status = "failed"
@@ -166,8 +171,8 @@ class VocalRemoverProcessor(BaseProcessor):
             str(output),
         ]
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=max(120.0, duration * 5)
+            result = run_cancellable(
+                cmd, self._is_cancelled, max(120.0, duration * 5)
             )
             return result.returncode == 0
         except subprocess.TimeoutExpired:
@@ -186,9 +191,8 @@ class VocalRemoverProcessor(BaseProcessor):
         ]
         try:
             logger.info("Running Demucs: %s", " ".join(cmd[:6]))
-            result = subprocess.run(
-                cmd, capture_output=True, text=True,
-                timeout=max(600.0, duration * 20),
+            result = run_cancellable(
+                cmd, self._is_cancelled, max(600.0, duration * 20)
             )
             if result.returncode != 0:
                 logger.error("Demucs failed: %s", result.stderr[-800:])
@@ -234,9 +238,9 @@ class VocalRemoverProcessor(BaseProcessor):
 
         if len(stem_files) == 1:
             # Single stem — just copy
-            result = subprocess.run(
+            result = run_cancellable(
                 [ffmpeg_cmd(), "-y", "-i", str(stem_files[0]), "-acodec", "copy", str(output)],
-                capture_output=True, timeout=120,
+                self._is_cancelled, 120,
             )
             return result.returncode == 0
 
@@ -261,7 +265,7 @@ class VocalRemoverProcessor(BaseProcessor):
             str(output),
         ]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            result = run_cancellable(cmd, self._is_cancelled, 300)
             if result.returncode != 0:
                 logger.error("Stem mix failed: %s", result.stderr[-500:])
                 return False
@@ -281,7 +285,7 @@ class VocalRemoverProcessor(BaseProcessor):
         cmd.append(str(output_path))
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            result = run_cancellable(cmd, self._is_cancelled, 300)
             return result.returncode == 0
         except subprocess.TimeoutExpired:
             return False
@@ -302,8 +306,8 @@ class VocalRemoverProcessor(BaseProcessor):
             str(output),
         ]
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=max(300.0, duration * 10)
+            result = run_cancellable(
+                cmd, self._is_cancelled, max(300.0, duration * 10)
             )
             if result.returncode != 0:
                 logger.error("Remux failed: %s", result.stderr[-500:])
