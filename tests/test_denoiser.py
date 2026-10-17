@@ -23,34 +23,6 @@ def test_denoiser_model_key():
     assert DenoiserProcessor.model_key({}) == "scunet-color-real"
 
 
-def test_denoiser_noise_levels():
-    """Noise level maps to correct strength."""
-    proc = DenoiserProcessor()
-    assert proc.get_noise_strength({"noise_level": 10}) == 10
-    assert proc.get_noise_strength({"noise_level": 50}) == 50
-    assert proc.get_noise_strength({}) == 25  # default
-
-
-def test_denoiser_artifact_removal():
-    """Artifact removal flag is read from params."""
-    proc = DenoiserProcessor()
-    job = Job(
-        source_path=Path("/tmp/in.mp4"),
-        output_path=Path("/tmp/out.mp4"),
-        pipeline=["denoiser"],
-        params={"remove_artifacts": True},
-    )
-    assert proc.should_remove_artifacts(job) is True
-
-    job2 = Job(
-        source_path=Path("/tmp/in.mp4"),
-        output_path=Path("/tmp/out.mp4"),
-        pipeline=["denoiser"],
-        params={"remove_artifacts": False},
-    )
-    assert proc.should_remove_artifacts(job2) is False
-
-
 def test_denoiser_falls_back_without_deps(tmp_path):
     """setup_model without ML deps → no net, frames are copied."""
     proc = DenoiserProcessor()

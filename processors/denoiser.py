@@ -104,13 +104,3 @@ class DenoiserProcessor(FrameProcessor):
         result = np.clip(result * 255.0, 0, 255).astype(np.uint8)
         result = np.transpose(result, (1, 2, 0))
         cv2.imwrite(str(output_path), result)
-
-    @staticmethod
-    def get_noise_strength(params: dict) -> int:
-        """Get noise strength from params (1-50)."""
-        return max(1, min(50, params.get("noise_level", 25)))
-
-    @staticmethod
-    def should_remove_artifacts(job: Job) -> bool:
-        """Check if artifact removal is enabled."""
-        return job.params.get("remove_artifacts", False)

@@ -151,7 +151,6 @@ backend = "ddcolor"      # ddcolor | deoldify
 
 [hdr]
 peak_nits = 1000
-tonemap = "hable"
 ```
 
 ## VRAM Management

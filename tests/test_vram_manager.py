@@ -148,3 +148,21 @@ def test_clamp_tile_backward_compat():
         assert mgr.clamp_tile(128) == 128
     finally:
         _cleanup_torch()
+
+
+def test_apply_device_preference():
+    """cpu forces CPU on a CUDA box; cuda:N is honored only when CUDA exists."""
+    from core.vram_manager import VRAMManager
+
+    mgr = VRAMManager()
+    mgr.has_cuda = True
+    mgr.apply_device_preference("auto")
+    assert mgr.device == "cuda"
+    mgr.apply_device_preference("cuda:1")
+    assert mgr.device == "cuda:1"
+    mgr.apply_device_preference("cpu")
+    assert mgr.device == "cpu"
+
+    mgr.has_cuda = False
+    mgr.apply_device_preference("cuda:0")
+    assert mgr.device == "cpu"

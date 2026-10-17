@@ -45,7 +45,6 @@ class ColorizerConfig:
 @dataclass
 class HDRConfig:
     peak_nits: int = 1000
-    tonemap: str = "hable"
 
 
 @dataclass

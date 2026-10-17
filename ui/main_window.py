@@ -67,12 +67,6 @@ class MainWindow(QMainWindow):
         self.config = AppConfig.load(config_path)
         logger.info("Config loaded from %s", config_path)
 
-        # A user-configured FFmpeg path overrides the auto-detected one
-        if self.config.ffmpeg.path and self.config.ffmpeg.path != "ffmpeg":
-            from core.ffmpeg import set_ffmpeg_path
-            set_ffmpeg_path(self.config.ffmpeg.path)
-            logger.info("Using configured FFmpeg: %s", self.config.ffmpeg.path)
-
         # Core components
         self.queue = JobQueue(concurrent_jobs=self.config.general.concurrent_jobs)
         self._workers: dict[str, Worker] = {}
@@ -87,8 +81,27 @@ class MainWindow(QMainWindow):
         # Apply config defaults to panels
         self._apply_config()
 
+    def _apply_runtime_settings(self) -> None:
+        """Push settings that affect processing into the running app."""
+        from core.ffmpeg import set_ffmpeg_path, set_threads
+        from core.nvenc import set_nvenc_enabled
+        from core.vram_manager import vram_manager
+
+        # A cleared FFmpeg override falls back to the binary detected at startup
+        if self.config.ffmpeg.path and self.config.ffmpeg.path != "ffmpeg":
+            set_ffmpeg_path(self.config.ffmpeg.path)
+        else:
+            set_ffmpeg_path(self.ffmpeg_path)
+        set_threads(self.config.ffmpeg.threads)
+        set_nvenc_enabled(self.config.gpu.use_nvenc)
+        vram_manager.apply_device_preference(self.config.gpu.device)
+        # Concurrency applies to the live queue, not just after a restart
+        self.queue.concurrent_jobs = self.config.general.concurrent_jobs
+
     def _apply_config(self) -> None:
         """Apply saved config to UI panels."""
+        self._apply_runtime_settings()
+        self.tools_panel.apply_config(self.config)
         if self.config.general.default_output_dir:
             out_dir = Path(self.config.general.default_output_dir)
             if out_dir.exists():
@@ -302,16 +315,8 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.append_log("[INFO] Settings saved")
 
-            # Apply a changed FFmpeg path immediately; clearing the override
-            # falls back to the binary detected at startup.
-            from core.ffmpeg import set_ffmpeg_path
-            if self.config.ffmpeg.path and self.config.ffmpeg.path != "ffmpeg":
-                set_ffmpeg_path(self.config.ffmpeg.path)
-            else:
-                set_ffmpeg_path(self.ffmpeg_path)
-
-            # Concurrency applies to the live queue, not just after a restart
-            self.queue.concurrent_jobs = self.config.general.concurrent_jobs
+            self._apply_runtime_settings()
+            self.tools_panel.apply_config(self.config)
 
             # Runtime theme switching (compare against the pre-dialog theme;
             # the dialog has already written the new one into self.config)

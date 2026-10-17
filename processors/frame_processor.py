@@ -11,7 +11,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from core.ffmpeg import ffmpeg_cmd, ffprobe_cmd
+from core.ffmpeg import ffmpeg_cmd, ffprobe_cmd, with_threads
 from core.job import Job
 from core.nvenc import video_encode_args
 from core.process import Cancelled, run_cancellable
@@ -214,6 +214,7 @@ class FrameProcessor(BaseProcessor, ABC):
             "-map", "1:a:0?",
             str(output_path),
         ]
+        cmd = with_threads(cmd)
         timeout = max(600.0, duration * 30)
         try:
             result = run_cancellable(cmd, self._is_cancelled, timeout)
@@ -257,7 +258,7 @@ class FrameProcessor(BaseProcessor, ABC):
         fps: str = "24",
     ) -> list[str]:
         """Build FFmpeg command for re-encoding."""
-        return [
+        return with_threads([
             ffmpeg_cmd(), "-y",
             "-framerate", fps,
             "-i", str(input_pattern),
@@ -268,4 +269,4 @@ class FrameProcessor(BaseProcessor, ABC):
             "-c:a", "aac",
             "-map", "0:v:0", "-map", "1:a:0?",
             str(output_path),
-        ]
+        ])

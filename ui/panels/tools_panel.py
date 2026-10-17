@@ -185,35 +185,6 @@ class ToolsPanel(QFrame):
         frame = QFrame()
         layout = QVBoxLayout(frame)
 
-        # Noise level
-        noise_group = QGroupBox("Noise Level")
-        noise_layout = QVBoxLayout()
-        h = QHBoxLayout()
-        h.addWidget(QLabel("Strength:"))
-        self.denoiser_level = QSlider(Qt.Orientation.Horizontal)
-        self.denoiser_level.setRange(1, 50)
-        self.denoiser_level.setValue(25)
-        self.denoiser_level.setTickPosition(QSlider.TickPosition.TicksBelow)
-        h.addWidget(self.denoiser_level)
-        self.denoiser_level_label = QLabel("25")
-        self.denoiser_level_label.setFixedWidth(30)
-        h.addWidget(self.denoiser_level_label)
-        self.denoiser_level.valueChanged.connect(
-            lambda v: self.denoiser_level_label.setText(str(v))
-        )
-        noise_layout.addLayout(h)
-        noise_group.setLayout(noise_layout)
-        layout.addWidget(noise_group)
-
-        # Artifact removal
-        artifact_group = QGroupBox("Artifact Removal")
-        artifact_layout = QHBoxLayout()
-        self.denoiser_artifacts = QCheckBox("Remove JPEG/blocking artifacts")
-        self.denoiser_artifacts.setChecked(True)
-        artifact_layout.addWidget(self.denoiser_artifacts)
-        artifact_group.setLayout(artifact_layout)
-        layout.addWidget(artifact_group)
-
         # Model
         model_group = QGroupBox("Model")
         model_layout = QHBoxLayout()
@@ -294,16 +265,6 @@ class ToolsPanel(QFrame):
         peak_layout.addWidget(self.hdr_peak_nits)
         peak_group.setLayout(peak_layout)
         layout.addWidget(peak_group)
-
-        # Tonemap algorithm
-        tonemap_group = QGroupBox("Tonemap Algorithm")
-        tonemap_layout = QHBoxLayout()
-        tonemap_layout.addWidget(QLabel("Algorithm:"))
-        self.hdr_tonemap = QComboBox()
-        self.hdr_tonemap.addItems(["hable", "reinhard", "mobius"])
-        tonemap_layout.addWidget(self.hdr_tonemap)
-        tonemap_group.setLayout(tonemap_layout)
-        layout.addWidget(tonemap_group)
 
         layout.addStretch()
         return frame
@@ -532,6 +493,40 @@ class ToolsPanel(QFrame):
             return self._get_converter_params()
         return {}
 
+    def apply_config(self, config) -> None:
+        """Seed the tool controls from the saved defaults in Settings."""
+        from processors.upscaler import UpscalerProcessor
+
+        # Upscaler: scale, model, tile (gpu.tile_size 0 = Auto)
+        scale = UpscalerProcessor.get_scale_factor({"scale": config.upscaler.default_scale})
+        button = self.upscaler_scale_group.button(scale)
+        if button is not None:
+            button.setChecked(True)
+        want_anime = "anime" in config.upscaler.default_model.lower()
+        self.upscaler_model.setCurrentIndex(1 if want_anime else 0)
+        tile = config.gpu.tile_size
+        self.upscaler_tile_auto.setChecked(tile <= 0)
+        if tile > 0:
+            self.upscaler_tile.setValue(max(self.upscaler_tile.minimum(), tile))
+
+        # Colorizer: backend + style → combo entry, saturation
+        backend_entries = {
+            ("ddcolor", "artistic"): "DDColor (Artistic)",
+            ("ddcolor", "stable"): "DDColor (ModelScope)",
+            ("ddcolor", "video"): "DDColor (Artistic)",
+            ("deoldify", "artistic"): "Deoldify (Artistic)",
+            ("deoldify", "stable"): "Deoldify (Stable)",
+            ("deoldify", "video"): "Deoldify (Video)",
+        }
+        text = backend_entries.get(
+            (config.colorizer.backend, config.colorizer.default_style), "DDColor (Artistic)"
+        )
+        self.colorizer_backend.setCurrentText(text)
+        self.colorizer_saturation.setValue(config.colorizer.saturation)
+
+        # HDR
+        self.hdr_peak_nits.setValue(config.hdr.peak_nits)
+
     def _on_tile_auto_toggled(self, checked: bool) -> None:
         """Enable the manual tile spinbox only when Auto is unchecked."""
         self.upscaler_tile.setEnabled(not checked)
@@ -556,8 +551,6 @@ class ToolsPanel(QFrame):
             "SCUNet (Gaussian noise)": "scunet-color-gaussian",
         }
         return {
-            "noise_level": self.denoiser_level.value(),
-            "remove_artifacts": self.denoiser_artifacts.isChecked(),
             "model": model_map.get(self.denoiser_model.currentText(), "scunet-color-real"),
         }
 
@@ -584,7 +577,6 @@ class ToolsPanel(QFrame):
         return {
             "hdr_format": "hdr10" if self.hdr_format.currentText() == "HDR10" else "hlg",
             "peak_nits": self.hdr_peak_nits.value(),
-            "tonemap": self.hdr_tonemap.currentText(),
         }
 
     def _get_audio_params(self, tool_name: str) -> dict:

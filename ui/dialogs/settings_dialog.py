@@ -202,7 +202,8 @@ class SettingsDialog(QDialog):
         scale_layout = QHBoxLayout()
         scale_layout.addWidget(QLabel("Default scale:"))
         self.spin_scale = QSpinBox()
-        self.spin_scale.setRange(2, 8)
+        self.spin_scale.setRange(2, 4)  # only 2x and 4x models exist
+        self.spin_scale.setSingleStep(2)
         scale_layout.addWidget(self.spin_scale)
         scale_layout.addStretch()
         upscaler_layout.addLayout(scale_layout)
@@ -265,14 +266,6 @@ class SettingsDialog(QDialog):
         nits_layout.addStretch()
         hdr_layout.addLayout(nits_layout)
 
-        tonemap_layout = QHBoxLayout()
-        tonemap_layout.addWidget(QLabel("Tonemap:"))
-        self.cmb_tonemap = QComboBox()
-        self.cmb_tonemap.addItems(["hable", "reinhard", "mobius"])
-        tonemap_layout.addWidget(self.cmb_tonemap)
-        tonemap_layout.addStretch()
-        hdr_layout.addLayout(tonemap_layout)
-
         hdr_group.setLayout(hdr_layout)
         layout.addWidget(hdr_group)
 
@@ -317,7 +310,6 @@ class SettingsDialog(QDialog):
 
         # HDR
         self.spin_nits.setValue(cfg.hdr.peak_nits)
-        self.cmb_tonemap.setCurrentText(cfg.hdr.tonemap)
 
     def _save_values(self) -> None:
         """Save UI control values into config."""
@@ -352,7 +344,6 @@ class SettingsDialog(QDialog):
 
         # HDR
         cfg.hdr.peak_nits = self.spin_nits.value()
-        cfg.hdr.tonemap = self.cmb_tonemap.currentText()
 
     def _on_save(self) -> None:
         """Save config and close dialog."""
