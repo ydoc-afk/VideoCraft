@@ -250,13 +250,7 @@ class MainWindow(QMainWindow):
         """Create a job for the active tool tab and add it to the queue."""
         tool = self.tools_panel.current_tool()
 
-        # The converter's settings (container/codec/CRF) live in the Output
-        # panel alongside the destination; all other tools configure
-        # themselves in their ToolsPanel tab.
-        if tool == "converter":
-            params = self.output_panel.get_params()
-        else:
-            params = self.tools_panel.get_params(tool)
+        params = self.tools_panel.get_params(tool)
 
         output_dir = self.output_panel.output_dir()
         if output_dir is None:
