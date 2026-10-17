@@ -150,3 +150,28 @@ def test_get_processor_ml_tools():
     assert isinstance(get_processor("upscaler"), UpscalerProcessor)
     assert isinstance(get_processor("denoiser"), DenoiserProcessor)
     assert isinstance(get_processor("colorizer"), ColorizerProcessor)
+
+
+def test_worker_chains_step_output_into_next_source():
+    """Step N+1 must read step N's output, and paths are restored afterwards."""
+    src, final = Path("/tmp/in.mp4"), Path("/tmp/final.mp4")
+    job = Job(source_path=src, output_path=final, pipeline=["denoiser", "upscaler"])
+    seen: list[tuple[Path, Path]] = []
+
+    def make(name):
+        def process(j):
+            seen.append((j.source_path, j.output_path))
+            yield f"[INFO] {name}"
+            j.progress = 1.0
+        return MagicMock(process=process)
+
+    procs = {"denoiser": make("d"), "upscaler": make("u")}
+    worker = Worker(job)
+    with patch("core.worker.get_processor", side_effect=lambda n: procs[n]):
+        worker.run()
+
+    assert seen[0][0] == src
+    assert seen[1][0] == seen[0][1] != final  # chained from intermediate
+    assert seen[1][1] == final
+    assert job.source_path == src and job.output_path == final
+    assert job.status == "done"
