@@ -5,8 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from core.job import Job
-from processors.colorizer import ColorizerProcessor
+from videocraft.core.job import Job
+from videocraft.processors.colorizer import ColorizerProcessor
 
 
 def test_colorizer_creates():

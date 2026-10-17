@@ -4,8 +4,8 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
-from core.job import Job
-from core.job_queue import JobQueue
+from videocraft.core.job import Job
+from videocraft.core.job_queue import JobQueue
 
 
 def test_queue_add_and_order():

@@ -34,11 +34,11 @@ in the file header.
 
 ## FFmpeg
 
-VideoCraft runs FFmpeg as an external program; it is not part of this
-repository. FFmpeg is licensed under the LGPL v2.1+ or the GPL v2+ depending
-on how the binary was built. If you redistribute a build that bundles FFmpeg
-(for example an AppImage with a static FFmpeg in `assets/bin/`), you must
-also comply with that build's license and provide its corresponding source.
+VideoCraft runs FFmpeg as an external program that you install yourself; it is
+not part of this repository or its packages. FFmpeg is licensed under the
+LGPL v2.1+ or the GPL v2+ depending on how your binary was built. If you
+redistribute VideoCraft together with an FFmpeg binary, you must also comply
+with that build's license.
 
 ## Model weights
 

@@ -5,8 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from core.job import Job
-from core.worker import Worker, get_processor
+from videocraft.core.job import Job
+from videocraft.core.worker import Worker, get_processor
 
 
 def test_worker_pipeline_single_step():
@@ -27,7 +27,7 @@ def test_worker_pipeline_single_step():
         j.progress = 1.0
         j.status = "done"
 
-    with patch("core.worker.get_processor") as mock_gp:
+    with patch("videocraft.core.worker.get_processor") as mock_gp:
         mock_proc = MagicMock()
         mock_proc.process = mock_process
         mock_gp.return_value = mock_proc
@@ -67,7 +67,7 @@ def test_worker_pipeline_multi_step():
     captured_lines: list[str] = []
     worker = Worker(job)
 
-    with patch("core.worker.get_processor") as mock_gp:
+    with patch("videocraft.core.worker.get_processor") as mock_gp:
         def side_effect(name):
             return mock_procs[name]
         mock_gp.side_effect = side_effect
@@ -105,7 +105,7 @@ def test_worker_pipeline_cancel_mid_chain():
 
     worker = Worker(job)
 
-    with patch("core.worker.get_processor") as mock_gp:
+    with patch("videocraft.core.worker.get_processor") as mock_gp:
         def side_effect(name):
             return mock_procs[name]
         mock_gp.side_effect = side_effect
@@ -132,7 +132,7 @@ def test_worker_intermediate_files_tracked():
 
     worker = Worker(job)
 
-    with patch("core.worker.get_processor", return_value=mock_proc):
+    with patch("videocraft.core.worker.get_processor", return_value=mock_proc):
         worker.run()
 
     # After multi-step pipeline, intermediate files should be cleaned
@@ -143,9 +143,9 @@ def test_worker_intermediate_files_tracked():
 
 def test_get_processor_ml_tools():
     """ML tools are registered in the processor registry."""
-    from processors.upscaler import UpscalerProcessor
-    from processors.denoiser import DenoiserProcessor
-    from processors.colorizer import ColorizerProcessor
+    from videocraft.processors.upscaler import UpscalerProcessor
+    from videocraft.processors.denoiser import DenoiserProcessor
+    from videocraft.processors.colorizer import ColorizerProcessor
 
     assert isinstance(get_processor("upscaler"), UpscalerProcessor)
     assert isinstance(get_processor("denoiser"), DenoiserProcessor)
@@ -167,7 +167,7 @@ def test_worker_chains_step_output_into_next_source():
 
     procs = {"denoiser": make("d"), "upscaler": make("u")}
     worker = Worker(job)
-    with patch("core.worker.get_processor", side_effect=lambda n: procs[n]):
+    with patch("videocraft.core.worker.get_processor", side_effect=lambda n: procs[n]):
         worker.run()
 
     assert seen[0][0] == src

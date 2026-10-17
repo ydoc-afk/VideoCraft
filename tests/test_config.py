@@ -4,7 +4,7 @@ import sys, os, tempfile, shutil
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.config import AppConfig
+from videocraft.core.config import AppConfig
 
 
 def test_default_config_values():

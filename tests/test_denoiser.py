@@ -5,8 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from core.job import Job
-from processors.denoiser import DenoiserProcessor
+from videocraft.core.job import Job
+from videocraft.processors.denoiser import DenoiserProcessor
 
 
 def test_denoiser_creates():

@@ -55,9 +55,24 @@ All notable changes to VideoCraft are documented here. The format follows
 - GPL-3.0 license and third-party notices.
 - GitHub Actions workflow that runs the test suite on every push and pull
   request.
-- Release workflow: pushing a `v*` tag runs the tests, builds the Linux
-  AppImage (with a bundled static FFmpeg) and publishes a GitHub release.
-- README: project status, AppImage download instructions, and release steps.
+- **Installable package**: `pip`/`pipx` installable, with a `videocraft`
+  command, `python -m videocraft`, and an `ml` extra for the AI packages.
+- **`videocraft setup`**: detects an NVIDIA GPU and its driver's CUDA version,
+  installs the matching PyTorch build plus the other AI packages, applies a
+  fix for basicsr's torchvision import, and checks that each tool works.
+- **`install.sh`** (Linux): private environment, `videocraft` command,
+  app-menu entry, and the AI tools in one step; `--uninstall` included.
+- Release workflow: pushing a `v*` tag runs the tests, builds the source and
+  wheel packages and publishes a GitHub release.
+- README: project status, install instructions, and release steps.
+
+### Changed (packaging)
+- Code now lives in the `videocraft` package (`videocraft.core`,
+  `videocraft.processors`, `videocraft.ui`); `requirements.txt` is replaced by
+  `pyproject.toml`. The version is defined once in `videocraft/__init__.py`.
+- Downloaded models are stored in the per-user data folder
+  (`~/.local/share/videocraft/models`, or `$VIDEOCRAFT_MODELS_DIR`) instead of
+  next to the code.
 
 ## Known limitations
 - The **colorizer** passes frames through unchanged: the DDColor and Deoldify
@@ -65,6 +80,7 @@ All notable changes to VideoCraft are documented here. The format follows
 - Model downloads are not checksum-verified yet.
 - Model downloads and a single frame's inference cannot be interrupted
   mid-call.
-- The AppImage does not include PyTorch or the other ML packages, so the AI
-  tools only pass input through there; run from source to use them.
-- Only a Linux AppImage build is set up; it has not been published yet.
+- Linux only for now; a Windows installer is planned. AMD GPUs (ROCm) are
+  untested (`videocraft setup --torch-index-url` can point at a ROCm build).
+- The AI tools need Python 3.11 or 3.12: the Real-ESRGAN dependency `basicsr`
+  does not build on Python 3.13.

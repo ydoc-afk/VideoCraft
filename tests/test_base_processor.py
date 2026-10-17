@@ -3,8 +3,8 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from processors.base_processor import BaseProcessor
-from core.job import Job
+from videocraft.processors.base_processor import BaseProcessor
+from videocraft.core.job import Job
 from pathlib import Path
 
 

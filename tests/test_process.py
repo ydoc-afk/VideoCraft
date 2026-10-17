@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
-from core.job import Job
-from core.process import Cancelled, run_cancellable
+from videocraft.core.job import Job
+from videocraft.core.process import Cancelled, run_cancellable
 import subprocess
 
 
@@ -42,7 +42,7 @@ def test_timeout_kills_child():
 
 def test_frame_processor_cancels_during_extraction(tmp_path):
     """Cancelling while FFmpeg is extracting stops it instead of waiting it out."""
-    from processors.frame_processor import FrameProcessor
+    from videocraft.processors.frame_processor import FrameProcessor
 
     class Noop(FrameProcessor):
         def process_frame(self, frame_path, output_path, job):
@@ -56,9 +56,9 @@ def test_frame_processor_cancels_during_extraction(tmp_path):
     threading.Timer(0.5, lambda: setattr(job, "cancelled", True)).start()
 
     t = time.monotonic()
-    with patch("processors.frame_processor.ffmpeg_cmd", return_value=str(slow)), \
-         patch("processors.frame_processor.ffprobe_fps", return_value="24"), \
-         patch("processors.frame_processor.ffprobe_duration", return_value=1.0):
+    with patch("videocraft.processors.frame_processor.ffmpeg_cmd", return_value=str(slow)), \
+         patch("videocraft.processors.frame_processor.ffprobe_fps", return_value="24"), \
+         patch("videocraft.processors.frame_processor.ffprobe_duration", return_value=1.0):
         lines = list(Noop().process(job))
 
     assert time.monotonic() - t < 5

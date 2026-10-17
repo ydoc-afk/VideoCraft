@@ -5,8 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from core.job import Job
-from processors.upscaler import UpscalerProcessor
+from videocraft.core.job import Job
+from videocraft.processors.upscaler import UpscalerProcessor
 
 
 def test_upscaler_creates():
@@ -77,7 +77,7 @@ def test_upscaler_setup_loads_model_once():
     }
 
     with patch.dict("sys.modules", mocks):
-        with patch("processors.upscaler.ensure_model", return_value=Path("/tmp/fake.pth")):
+        with patch("videocraft.processors.upscaler.ensure_model", return_value=Path("/tmp/fake.pth")):
             proc.setup_model(job)
 
     assert proc._upsampler is not None
@@ -111,7 +111,7 @@ def test_upscaler_cancel_check():
 def test_upscaler_vram_settings():
     """Upscaler uses VRAMManager for batch/tile settings."""
     proc = UpscalerProcessor()
-    from processors.frame_processor import vram_manager
+    from videocraft.processors.frame_processor import vram_manager
     batch = vram_manager.recommended_batch
     tile = vram_manager.recommended_tile
     assert batch >= 1

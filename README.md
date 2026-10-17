@@ -56,74 +56,82 @@ what you find in the [issue tracker](https://github.com/ydoc-afk/VideoCraft/issu
 - **Colorizer is a placeholder:** the DDColor / Deoldify inference packages are not available
   on PyPI yet, so it currently passes frames through unchanged.
 - Model downloads are not checksum-verified yet.
+- Linux only for now; AMD GPUs (ROCm) are untested.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions.
 
 ## Installation
 
-### Download (Linux AppImage)
-
-Grab `VideoCraft-x86_64.AppImage` from the
-[Releases page](https://github.com/ydoc-afk/VideoCraft/releases), then:
-
-```bash
-sha256sum -c SHA256SUMS        # optional: verify the download
-chmod +x VideoCraft-x86_64.AppImage
-./VideoCraft-x86_64.AppImage
-```
-
-The AppImage bundles a static FFmpeg, so the **Converter, HDR Converter and Audio Upmixer work
-out of the box**. It does **not** include PyTorch or the other ML packages, so the AI tools
-(Upscaler, Denoiser, Colorizer, Vocal Remover) only pass input through. To use them, run from
-source as below.
+VideoCraft currently targets **Linux** (a Windows installer is planned). The AI tools run best on an
+**NVIDIA GPU**; everything also works on CPU, just slowly.
 
 ### Prerequisites
 
-- **Python 3.11+**
-- **FFmpeg** — install system-wide or place `ffmpeg` / `ffmpeg.exe` in `assets/bin/`
-- **NVIDIA GPU** (optional but recommended for ML tools) — CUDA-capable GPU with PyTorch CUDA support
+- **Python 3.11 or 3.12** (3.13 is not supported for the AI tools yet — the Real-ESRGAN dependency `basicsr` does not build on it)
+- **FFmpeg** — e.g. `sudo apt install ffmpeg`
+- **NVIDIA driver** (optional but recommended) — nothing else to install; PyTorch brings its own CUDA runtime
 
-### Quick Start
+### Quick install
 
 ```bash
-# Clone the repository
 git clone https://github.com/ydoc-afk/VideoCraft.git
 cd VideoCraft
-
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate   # On Windows: .venv\Scripts\activate
-
-# Install core dependencies (converter, HDR, upmixer work immediately)
-pip install -r requirements.txt
-
-# (Optional) Install ML dependencies for upscaler, denoiser, colorizer, vocal remover
-pip install torch torchvision basicsr realesrgan opencv-python einops timm demucs
-
-# Run the application
-python main.py
+./install.sh
 ```
 
-### ML Dependencies by Tool
+`install.sh` creates a private environment, installs VideoCraft, detects your NVIDIA driver, and
+installs the matching PyTorch build and the other AI packages (this downloads several GB). It adds
+a `videocraft` command and an app-menu entry, then runs a self-check and tells you which tools work.
 
-ML packages are **optional** — the app runs without them. Tools that need ML gracefully fall back to pass-through with a warning.
+| Option | Effect |
+|--------|--------|
+| `./install.sh --gpu cpu` | force the CPU build of PyTorch (or `--gpu nvidia`) |
+| `./install.sh --no-ml` | install the app only; add the AI tools later with `videocraft setup` |
+| `./install.sh --torch-index-url URL` | install PyTorch from another index, e.g. an AMD ROCm build (untested) |
+| `./install.sh --uninstall` | remove the app (your config and downloaded models are kept) |
+
+To update, `git pull` and run `./install.sh` again.
+
+### Install with pipx
+
+```bash
+pipx install "git+https://github.com/ydoc-afk/VideoCraft.git"
+videocraft setup          # installs PyTorch + the AI packages into the same environment
+```
+
+### What `videocraft setup` installs
+
+AI packages are **optional** — the converter, HDR converter and audio upmixer work without them.
+Tools that need ML fall back to pass-through with a warning if they are missing.
 
 | Tool | Packages |
 |------|----------|
 | Upscaler | `torch`, `torchvision`, `basicsr`, `realesrgan`, `opencv-python` |
 | Denoiser | `torch`, `einops`, `timm`, `opencv-python` |
-| Colorizer | `torch`, `opencv-python` + DDColor or Deoldify inference packages |
+| Colorizer | `torch`, `opencv-python` + DDColor or Deoldify inference packages (not available yet) |
 | Vocal Remover | `demucs` (downloads its own weights on first run) |
+
+`videocraft setup --gpu auto|nvidia|cpu` can be re-run at any time; `--dry-run` shows what it would install.
+
+### From source (development)
+
+```bash
+git clone https://github.com/ydoc-afk/VideoCraft.git && cd VideoCraft
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+videocraft setup          # optional: AI tools
+python -m videocraft      # or: videocraft
+```
 
 ## Usage
 
 ### Launching
 
 ```bash
-python main.py
+videocraft
 ```
 
-The app checks for FFmpeg on startup (bundled in `assets/bin/` first, then PATH). If not found, an error dialog is shown.
+The app checks for FFmpeg on startup (on your PATH, or the path set in Settings → FFmpeg). If not found, an error dialog is shown.
 
 ### Workflow
 
@@ -205,7 +213,7 @@ Set `tile_size = 0` in config (or leave the UI on "Auto") for automatic selectio
 
 ## AI Models
 
-Models are managed through the **Model Manager** (Tools → Model Manager). Weights are stored in `models/` and downloaded automatically when needed.
+Models are managed through the **Model Manager** (Tools → Model Manager). Weights are stored in your user data folder (`~/.local/share/videocraft/models` on Linux) and downloaded automatically when needed.
 
 ### Available Models
 
@@ -228,50 +236,46 @@ Demucs (vocal remover) downloads its own weights automatically on first run.
 
 ```
 VideoCraft
-├── main.py                  # Entry point: FFmpeg check, theme, window
-├── core/
-│   ├── config.py            # TOML config (platform-specific paths)
-│   ├── ffmpeg.py            # FFmpeg/ffprobe resolution, thread count
-│   ├── job.py               # Job dataclass (pipeline, params, status)
-│   ├── job_queue.py         # Thread-safe queue with ML concurrency limits
-│   ├── models_registry.py   # Model metadata, download, verification
-│   ├── nvenc.py             # NVENC detection and encoder selection
-│   ├── process.py           # Cancellable subprocess runner
-│   ├── theme.py             # qt-material theme + custom QSS
-│   ├── vram_manager.py      # CUDA VRAM detection and tile sizing
-│   └── worker.py            # QThread worker with multi-step pipelines
-├── processors/
-│   ├── base_processor.py    # Abstract base (process() → log generator)
-│   ├── converter.py         # FFmpeg format conversion
-│   ├── frame_processor.py   # Frame extraction/inference/re-encode base
-│   ├── upscaler.py          # Real-ESRGAN upscaling
-│   ├── denoiser.py          # SCUNet denoising
-│   ├── colorizer.py         # DDColor / Deoldify colorization
-│   ├── hdr_converter.py     # SDR → HDR10/HLG
-│   ├── archs/               # Vendored model architectures (SCUNet)
-│   └── audio/
-│       ├── vocal_remover.py # Demucs stem separation
-│       └── upmixer.py       # Stereo → 5.1/7.1 upmix
-├── ui/
-│   ├── main_window.py       # QMainWindow with splitter layout
-│   ├── panels/
-│   │   ├── source_panel.py  # File picker with ffprobe metadata
-│   │   ├── output_panel.py  # Destination folder
-│   │   ├── tools_panel.py   # Tabbed tool settings
-│   │   ├── queue_panel.py   # Job table with progress bars
-│   │   └── log_panel.py     # Color-coded log output
-│   ├── dialogs/
-│   │   ├── settings_dialog.py      # App settings
-│   │   ├── model_manager_dialog.py # Model download manager
-│   │   └── preflight_dialog.py     # Pre-flight validation
-│   └── widgets/
-│       └── drag_drop_area.py       # Drag-and-drop support
-├── assets/
-│   ├── bin/                 # Bundled FFmpeg binaries
-│   ├── icons/               # Application icons
-│   └── themes/              # Custom QSS overrides
-└── models/                  # AI model weights (downloaded at runtime)
+├── install.sh               # Linux installer (venv, launcher, `videocraft setup`)
+├── pyproject.toml           # Package metadata, `ml` extra, `videocraft` command
+├── videocraft/
+│   ├── cli.py               # `videocraft` / `videocraft setup` entry point
+│   ├── installer.py         # GPU detection + AI package installation
+│   ├── main.py              # GUI entry: FFmpeg check, theme, window
+│   ├── assets/              # Icons and custom QSS theme overrides
+│   ├── core/
+│   │   ├── config.py        # TOML config (platform-specific paths)
+│   │   ├── ffmpeg.py        # FFmpeg/ffprobe resolution, thread count
+│   │   ├── job.py           # Job dataclass (pipeline, params, status)
+│   │   ├── job_queue.py     # Thread-safe queue with ML concurrency limits
+│   │   ├── models_registry.py # Model metadata, download, verification
+│   │   ├── nvenc.py         # NVENC detection and encoder selection
+│   │   ├── process.py       # Cancellable subprocess runner
+│   │   ├── theme.py         # qt-material theme + custom QSS
+│   │   ├── vram_manager.py  # CUDA VRAM detection and tile sizing
+│   │   └── worker.py        # QThread worker with multi-step pipelines
+│   ├── processors/
+│   │   ├── base_processor.py  # Abstract base (process() → log generator)
+│   │   ├── converter.py       # FFmpeg format conversion
+│   │   ├── frame_processor.py # Frame extraction/inference/re-encode base
+│   │   ├── upscaler.py        # Real-ESRGAN upscaling
+│   │   ├── denoiser.py        # SCUNet denoising
+│   │   ├── colorizer.py       # DDColor / Deoldify colorization
+│   │   ├── hdr_converter.py   # SDR → HDR10/HLG
+│   │   ├── archs/             # Vendored model architectures (SCUNet)
+│   │   └── audio/
+│   │       ├── vocal_remover.py # Demucs stem separation
+│   │       └── upmixer.py       # Stereo → 5.1/7.1 upmix
+│   └── ui/
+│       ├── main_window.py   # QMainWindow with splitter layout
+│       ├── panels/          # source, output, tools, queue, log panels
+│       ├── dialogs/         # settings, model manager, pre-flight
+│       └── widgets/         # drag-and-drop area
+└── tests/
 ```
+
+User data lives outside the code: config in `~/.config/videocraftapp/`, downloaded models in
+`~/.local/share/videocraft/models/` (override with `$VIDEOCRAFT_MODELS_DIR`).
 
 ### Key Design Decisions
 
@@ -298,27 +302,26 @@ GitHub Actions runs the same suite on Python 3.11 and 3.12 for every push and pu
 
 ### Cutting a Release
 
-1. Bump the version in `main.py` (`setApplicationVersion`) and move the `[Unreleased]` entries in
+1. Bump `__version__` in `videocraft/__init__.py` and move the `[Unreleased]` entries in
    `CHANGELOG.md` under the new version heading.
 2. Merge to `main`, then push a matching tag: `git tag v0.2.0 && git push origin v0.2.0`.
-3. The **Release** workflow runs the tests, builds the AppImage (with a static FFmpeg), and
-   publishes a GitHub release (marked pre-release for `0.x`). The build fails if the tag does not
-   match the app version. Use *Actions → Release → Run workflow* for a dry run that only uploads
-   the AppImage as a build artifact.
+3. The **Release** workflow runs the tests, builds the source and wheel packages, and publishes a
+   GitHub release (marked pre-release for `0.x`) with install instructions. It fails if the tag does
+   not match `__version__`. Use *Actions → Release → Run workflow* for a dry run that only builds.
 
 ### Project Structure for Contributors
 
-- **`core/`** — shared infrastructure (config, queue, FFmpeg, GPU detection)
-- **`processors/`** — tool implementations; each inherits `BaseProcessor` or `FrameProcessor`
-- **`ui/`** — PyQt6 panels, dialogs, and widgets
+- **`videocraft/core/`** — shared infrastructure (config, queue, FFmpeg, GPU detection)
+- **`videocraft/processors/`** — tool implementations; each inherits `BaseProcessor` or `FrameProcessor`
+- **`videocraft/ui/`** — PyQt6 panels, dialogs, and widgets
 - **`tests/`** — unit tests for core components and processors
 
 ### Adding a New Processor
 
 1. Create a class inheriting `BaseProcessor` (for direct FFmpeg tools) or `FrameProcessor` (for frame-based ML tools)
 2. Implement `process(self, job)` yielding log line strings
-3. Register it in `core/worker.py` under `_PROCESSORS`
-4. Add a settings tab in `ui/panels/tools_panel.py`
+3. Register it in `videocraft/core/worker.py` under `_PROCESSORS`
+4. Add a settings tab in `videocraft/ui/panels/tools_panel.py`
 
 ## License
 
