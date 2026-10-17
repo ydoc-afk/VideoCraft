@@ -11,6 +11,7 @@ from core.job import Job
 from core.job_queue import JobQueue
 from ui.panels.source_panel import SourcePanel
 from ui.panels.output_panel import OutputPanel
+from ui.panels.tools_panel import ToolsPanel
 from ui.panels.queue_panel import QueuePanel
 
 
@@ -30,34 +31,6 @@ def test_source_panel_accepts_video_exts():
     assert "2 file(s)" in panel.label_files.text()
 
 
-def test_output_panel_defaults():
-    """Output panel has sensible defaults."""
-    panel = OutputPanel()
-    params = panel.get_params()
-    assert params["container"] == "mp4"
-    assert params["video_codec"] == "h264"
-    assert params["audio_codec"] == "aac"
-    assert params["crf"] == 23
-
-
-def test_output_panel_crf_slider():
-    """CRF slider updates params."""
-    panel = OutputPanel()
-    panel.scr_crf.setValue(18)
-    panel._on_crf_changed(18)
-    assert panel.get_params()["crf"] == 18
-    assert panel.lbl_crf.text() == "18"
-
-
-def test_output_panel_preset():
-    """Preset buttons set CRF correctly."""
-    panel = OutputPanel()
-    panel._set_crf_preset(28)  # Fast
-    assert panel.get_params()["crf"] == 28
-    panel._set_crf_preset(18)  # Quality
-    assert panel.get_params()["crf"] == 18
-
-
 def test_output_panel_set_dir():
     """Output dir can be set programmatically."""
     panel = OutputPanel()
@@ -66,13 +39,42 @@ def test_output_panel_set_dir():
     assert "/tmp/output" in panel.lbl_destination.text()
 
 
-def test_output_panel_format_selection():
+def test_convert_tab_defaults():
+    """Convert tab has sensible defaults."""
+    panel = ToolsPanel()
+    params = panel.get_params("converter")
+    assert params["container"] == "mp4"
+    assert params["video_codec"] == "h264"
+    assert params["audio_codec"] == "aac"
+    assert params["crf"] == 23
+
+
+def test_convert_tab_crf_slider():
+    """CRF slider updates params and label; manual change clears the preset."""
+    panel = ToolsPanel()
+    panel.convert_crf.setValue(20)
+    assert panel.get_params("converter")["crf"] == 20
+    assert panel.convert_crf_label.text() == "20"
+    assert not any(b.isChecked() for b in panel._crf_presets.values())
+
+
+def test_convert_tab_preset():
+    """Preset buttons set CRF and stay checked."""
+    panel = ToolsPanel()
+    panel._crf_presets["Fast"].click()
+    assert panel.get_params("converter")["crf"] == 28
+    assert panel._crf_presets["Fast"].isChecked()
+    panel._crf_presets["Quality"].click()
+    assert panel.get_params("converter")["crf"] == 18
+
+
+def test_convert_tab_format_selection():
     """Format/codec selection maps to correct params."""
-    panel = OutputPanel()
-    panel.cmb_container.setCurrentText("MKV")
-    panel.cmb_video_codec.setCurrentText("H.265")
-    panel.cmb_audio_codec.setCurrentText("None")
-    params = panel.get_params()
+    panel = ToolsPanel()
+    panel.convert_container.setCurrentText("MKV")
+    panel.convert_video_codec.setCurrentText("H.265")
+    panel.convert_audio_codec.setCurrentText("None")
+    params = panel.get_params("converter")
     assert params["container"] == "mkv"
     assert params["video_codec"] == "h265"
     assert params["audio_codec"] == "none"

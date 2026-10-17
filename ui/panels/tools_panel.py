@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QSpinBox,
     QDoubleSpinBox,
+    QPushButton,
     QSizePolicy,
     QWidget,
 )
@@ -461,11 +462,50 @@ class ToolsPanel(QFrame):
         self.convert_crf.valueChanged.connect(
             lambda v: self.convert_crf_label.setText(str(v))
         )
-        crf_group.setLayout(crf_layout)
+        crf_outer = QVBoxLayout()
+        crf_outer.addLayout(crf_layout)
+
+        # Preset buttons (mutually exclusive via QButtonGroup)
+        preset_layout = QHBoxLayout()
+        preset_layout.addWidget(QLabel("Preset:"))
+        self._preset_group = QButtonGroup(self)
+        self._preset_group.setExclusive(True)
+        self._crf_presets: dict[str, QPushButton] = {}
+        for name, crf in (("Fast", 28), ("Balanced", 23), ("Quality", 18)):
+            btn = QPushButton(name)
+            btn.setCheckable(True)
+            btn.setChecked(crf == 23)
+            btn.clicked.connect(lambda _=False, c=crf: self._set_crf_preset(c))
+            self._preset_group.addButton(btn)
+            self._crf_presets[name] = btn
+            preset_layout.addWidget(btn)
+        crf_outer.addLayout(preset_layout)
+        crf_group.setLayout(crf_outer)
         layout.addWidget(crf_group)
+        self.convert_crf.valueChanged.connect(self._on_convert_crf_changed)
 
         layout.addStretch()
         return frame
+
+    def _on_convert_crf_changed(self, value: int) -> None:
+        """Uncheck the presets on *manual* CRF adjustment only — preset
+        clicks also move the slider and must not uncheck themselves."""
+        if getattr(self, "_applying_preset", False):
+            return
+        # An exclusive QButtonGroup ignores programmatic unchecks, so lift
+        # exclusivity for a moment to reach the "no preset" state.
+        self._preset_group.setExclusive(False)
+        for btn in self._crf_presets.values():
+            btn.setChecked(False)
+        self._preset_group.setExclusive(True)
+
+    def _set_crf_preset(self, crf: int) -> None:
+        """Set the CRF slider from a preset button."""
+        self._applying_preset = True
+        try:
+            self.convert_crf.setValue(crf)
+        finally:
+            self._applying_preset = False
 
     # ── Params Collection ──
 

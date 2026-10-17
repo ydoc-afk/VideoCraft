@@ -48,7 +48,7 @@ def test_main_window_add_to_queue():
     win = MainWindow(ffmpeg_path=Path("ffmpeg"))
     win.output_panel.set_output_dir(Path("/tmp/output"))
 
-    # Convert tab active → converter job with Output panel params
+    # Convert tab active → converter job with the Convert tab's params
     win.tools_panel.tab_widget.setCurrentIndex(5)
     win._add_to_queue(Path("/tmp/test.mp4"))
 
@@ -58,6 +58,13 @@ def test_main_window_add_to_queue():
     assert job.output_path.parent == Path("/tmp/output")
     assert job.pipeline == ["converter"]
     assert "container" in job.params
+
+    # The Convert tab's settings are what the job actually uses
+    win.tools_panel.convert_container.setCurrentText("MKV")
+    win._add_to_queue(Path("/tmp/test2.mp4"))
+    job2 = win.queue.jobs[1]
+    assert job2.params["container"] == "mkv"
+    assert job2.output_path.suffix == ".mkv"
 
 
 def test_main_window_add_to_queue_uses_active_tool():
