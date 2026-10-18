@@ -7,8 +7,6 @@ name: Model hashes
 # the job summary and a downloadable artifact.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/model-checksums]   # first run, before this file reaches main
 
 permissions:
   contents: read
