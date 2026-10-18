@@ -75,6 +75,14 @@ All notable changes to VideoCraft are documented here. The format follows
   WebP, BMP and TIFF images and write the result in the same format. Other
   tools skip photos with a log message. Supported file types now live in one
   place (`videocraft/core/media.py`).
+- **Working colorizer**: DDColor's inference code is now vendored
+  (Apache-2.0, `processors/archs/ddcolor/`), so the colorizer runs with just
+  PyTorch and OpenCV. `videocraft setup` checks it.
+
+### Removed (colorizer)
+- DeOldify support and its three model downloads: its dependencies are
+  unreliable on current Python. `colorizer.backend` is gone from the config
+  (old files that still contain it load normally).
 
 ### Changed (packaging)
 - Code now lives in the `videocraft` package (`videocraft.core`,
@@ -85,8 +93,9 @@ All notable changes to VideoCraft are documented here. The format follows
   next to the code.
 
 ## Known limitations
-- The **colorizer** passes frames through unchanged: the DDColor and Deoldify
-  inference packages are not available on PyPI yet.
+- The **colorizer** (DDColor) colorizes each frame independently, so colours
+  can flicker on moving footage; it has not been tested with real weights on a
+  GPU yet.
 - Model downloads are not checksum-verified yet.
 - Model downloads and a single frame's inference cannot be interrupted
   mid-call.

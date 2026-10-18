@@ -39,7 +39,6 @@ class UpscalerConfig:
 class ColorizerConfig:
     default_style: str = "artistic"
     saturation: float = 1.0
-    backend: str = "ddcolor"  # ddcolor | deoldify
 
 
 @dataclass

@@ -266,7 +266,7 @@ class SettingsDialog(QDialog):
         style_layout = QHBoxLayout()
         style_layout.addWidget(QLabel("Default style:"))
         self.cmb_color_style = QComboBox()
-        self.cmb_color_style.addItems(["artistic", "stable", "video"])
+        self.cmb_color_style.addItems(["artistic", "stable"])
         style_layout.addWidget(self.cmb_color_style)
         style_layout.addStretch()
         color_layout.addLayout(style_layout)
@@ -279,14 +279,6 @@ class SettingsDialog(QDialog):
         sat_layout.addWidget(self.double_sat)
         sat_layout.addStretch()
         color_layout.addLayout(sat_layout)
-
-        backend_layout = QHBoxLayout()
-        backend_layout.addWidget(QLabel("Backend:"))
-        self.cmb_backend = QComboBox()
-        self.cmb_backend.addItems(["ddcolor", "deoldify"])
-        backend_layout.addWidget(self.cmb_backend)
-        backend_layout.addStretch()
-        color_layout.addLayout(backend_layout)
 
         color_group.setLayout(color_layout)
         layout.addWidget(color_group)
@@ -344,7 +336,6 @@ class SettingsDialog(QDialog):
         # Colorizer
         self.cmb_color_style.setCurrentText(cfg.colorizer.default_style)
         self.double_sat.setValue(cfg.colorizer.saturation)
-        self.cmb_backend.setCurrentText(cfg.colorizer.backend)
 
         # HDR
         self.spin_nits.setValue(cfg.hdr.peak_nits)
@@ -378,7 +369,6 @@ class SettingsDialog(QDialog):
         # Colorizer
         cfg.colorizer.default_style = self.cmb_color_style.currentText()
         cfg.colorizer.saturation = self.double_sat.value()
-        cfg.colorizer.backend = self.cmb_backend.currentText()
 
         # HDR
         cfg.hdr.peak_nits = self.spin_nits.value()

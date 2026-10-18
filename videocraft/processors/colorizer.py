@@ -1,4 +1,4 @@
-"""Colorizer processor — DDColor and Deoldify backends."""
+"""Colorizer processor — DDColor (inference code vendored in processors/archs/ddcolor)."""
 
 from __future__ import annotations
 
@@ -12,31 +12,29 @@ from videocraft.processors.frame_processor import FrameProcessor
 
 logger = logging.getLogger(__name__)
 
-# (backend, style) → registry key
+# style → registry key. DDColor has no dedicated video model, so "video"
+# uses the artistic weights.
 _MODEL_KEYS = {
-    ("ddcolor", "artistic"): "ddcolor-artistic",
-    ("ddcolor", "stable"): "ddcolor-modelscope",
-    ("ddcolor", "video"): "ddcolor-artistic",  # ddcolor has no video model
-    ("deoldify", "artistic"): "deoldify-artistic",
-    ("deoldify", "stable"): "deoldify-stable",
-    ("deoldify", "video"): "deoldify-video",
+    "artistic": "ddcolor-artistic",
+    "stable": "ddcolor-modelscope",
+    "video": "ddcolor-artistic",
 }
+
+# Both released DDColor checkpoints are the "large" (ConvNeXt-L) variant.
+_MODEL_SIZE = "large"
+_INPUT_SIZE = 512
 
 
 class ColorizerProcessor(FrameProcessor):
-    """Video colorization processor.
+    """Video colorization with DDColor.
 
-    Supports two backends:
-    - DDColor: ddcolor-artistic, ddcolor-modelscope
-    - Deoldify: Artistic, Stable, Video modes
+    DDColor works per image, so each frame is colorized independently — fast
+    motion or scene changes can make colors flicker slightly between frames.
+    The original luminance is kept; only chroma comes from the model.
 
-    Preserves luminance (Y channel) from the original grayscale frame;
-    only takes chroma from the model output.
-
-    NOTE: neither backend's inference package is installable from PyPI yet;
-    until they are vendored (tracked for a later phase), frames pass
-    through unchanged with a warning. Model weights resolve through the
-    registry so downloads and pre-flight checks already work.
+    Needs the optional ML packages (torch, opencv). Without them frames pass
+    through unchanged with a warning. A missing or undownloadable model file
+    fails the job.
     """
 
     def __init__(self) -> None:
@@ -49,7 +47,7 @@ class ColorizerProcessor(FrameProcessor):
         self._np = None
 
     def setup_model(self, job: Job) -> None:
-        """Load the colorization model once for the whole job."""
+        """Load DDColor once for the whole job."""
         self._backend = self.get_backend(job)
         self._style = self.get_style(job.params)
         self._saturation = self.get_saturation(job.params)
@@ -58,6 +56,7 @@ class ColorizerProcessor(FrameProcessor):
         try:
             import cv2
             import numpy as np
+            import torch
         except ImportError as e:
             logger.warning(
                 "Colorizer dependencies not installed (%s) — frames will be copied unchanged", e
@@ -65,39 +64,21 @@ class ColorizerProcessor(FrameProcessor):
             return
         self._cv2, self._np = cv2, np
 
-        model_key = _MODEL_KEYS.get((self._backend, self._style), "ddcolor-artistic")
+        from videocraft.core.vram_manager import vram_manager
+        from videocraft.processors.archs.ddcolor import (
+            ColorizationPipeline,
+            DDColor,
+            build_ddcolor_model,
+        )
 
-        if self._backend == "ddcolor":
-            try:
-                from ddcolor.pipeline import DDColorPipeline
-            except ImportError:
-                logger.warning(
-                    "DDColor package not available — frames will be copied unchanged"
-                )
-                return
-            import torch
-            from videocraft.core.vram_manager import vram_manager
-            model_path = ensure_model(model_key)  # may raise → job fails
-            self._pipeline = DDColorPipeline(
-                str(model_path), device=torch.device(vram_manager.device)
-            )
-        elif self._backend == "deoldify":
-            try:
-                from deoldify.visualize import get_image_colorizer  # noqa: F401
-            except ImportError:
-                logger.warning(
-                    "Deoldify package not available — frames will be copied unchanged"
-                )
-                return
-            model_path = ensure_model(model_key)  # may raise → job fails
-            render_factor = 25 if self._style == "artistic" else 35
-            self._pipeline = get_image_colorizer(
-                root_folder=model_path.parent.parent,
-                artistic=self._style == "artistic",
-                render_factor=render_factor,
-            )
-        else:
-            logger.error("Unknown colorizer backend: %s", self._backend)
+        model_path = ensure_model(_MODEL_KEYS[self._style])  # may raise → job fails
+        device = torch.device(vram_manager.device)
+        model = build_ddcolor_model(
+            DDColor, model_path=str(model_path), model_size=_MODEL_SIZE,
+            input_size=_INPUT_SIZE, device=device,
+        )
+        self._pipeline = ColorizationPipeline(model, input_size=_INPUT_SIZE, device=device)
+        logger.info("Loaded DDColor (%s) on %s", self._style, vram_manager.summary())
 
     def teardown_model(self) -> None:
         self._pipeline = None
@@ -116,11 +97,8 @@ class ColorizerProcessor(FrameProcessor):
         img = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
         y_channel = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)[:, :, 0]
 
-        if self._backend == "ddcolor":
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            colored = self._pipeline(gray)
-        else:
-            colored = self._pipeline.get_transformed_image(str(frame_path))
+        # The pipeline converts to Lab and only uses the lightness channel
+        colored = self._pipeline.process(img)
 
         if self._saturation != 1.0:
             colored = self._apply_saturation(colored, self._saturation)
@@ -144,8 +122,12 @@ class ColorizerProcessor(FrameProcessor):
 
     @staticmethod
     def get_backend(job: Job) -> str:
-        """Get backend from job params."""
-        return job.params.get("backend", "ddcolor")
+        """Colorization backend. Only DDColor is supported; anything else
+        (e.g. "deoldify" from an older config) falls back to it."""
+        backend = job.params.get("backend", "ddcolor")
+        if backend != "ddcolor":
+            logger.warning("Colorizer backend %r is not supported — using DDColor", backend)
+        return "ddcolor"
 
     @staticmethod
     def get_style(params: dict) -> str:

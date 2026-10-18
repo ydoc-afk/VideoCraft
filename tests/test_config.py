@@ -20,7 +20,6 @@ def test_default_config_values():
     assert cfg.upscaler.default_model == "RealESRGAN_x4plus"
     assert cfg.colorizer.default_style == "artistic"
     assert cfg.colorizer.saturation == 1.0
-    assert cfg.colorizer.backend == "ddcolor"
     assert cfg.hdr.peak_nits == 1000
 
 
@@ -66,9 +65,10 @@ def test_load_missing_file_returns_defaults(tmp_path):
     assert cfg.general.concurrent_jobs == 1
 
 
-def test_colorizer_backend_choice():
-    """Colorizer backend can be ddcolor or deoldify."""
-    cfg = AppConfig.defaults()
-    assert cfg.colorizer.backend == "ddcolor"
-    cfg.colorizer.backend = "deoldify"
-    assert cfg.colorizer.backend == "deoldify"
+def test_old_config_with_colorizer_backend_still_loads(tmp_path):
+    """Configs saved before DeOldify was dropped contain `backend`; they must still load."""
+    path = tmp_path / "config.toml"
+    path.write_text('[colorizer]\nbackend = "deoldify"\nsaturation = 1.4\n')
+    cfg = AppConfig.load(path)
+    assert cfg.colorizer.saturation == 1.4
+    assert not hasattr(cfg.colorizer, "backend")

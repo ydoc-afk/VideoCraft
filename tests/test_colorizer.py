@@ -1,4 +1,4 @@
-"""Tests for processors.colorizer — DDColor/Deoldify colorization."""
+"""Tests for processors.colorizer — DDColor colorization."""
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,31 +16,17 @@ def test_colorizer_creates():
     assert proc._pipeline is None
 
 
-def test_colorizer_backend_selection():
-    """Backend is selected from params."""
+def test_colorizer_backend_is_always_ddcolor():
+    """DDColor is the only backend; unknown ones (old configs) fall back to it."""
     proc = ColorizerProcessor()
-    job = Job(
-        source_path=Path("/tmp/in.mp4"),
-        output_path=Path("/tmp/out.mp4"),
-        pipeline=["colorizer"],
-        params={"backend": "deoldify"},
-    )
-    assert proc.get_backend(job) == "deoldify"
-
-    job2 = Job(
-        source_path=Path("/tmp/in.mp4"),
-        output_path=Path("/tmp/out.mp4"),
-        pipeline=["colorizer"],
-        params={"backend": "ddcolor"},
-    )
-    assert proc.get_backend(job2) == "ddcolor"
-
-    job3 = Job(
-        source_path=Path("/tmp/in.mp4"),
-        output_path=Path("/tmp/out.mp4"),
-        pipeline=["colorizer"],
-    )
-    assert proc.get_backend(job3) == "ddcolor"  # default
+    for params in ({"backend": "ddcolor"}, {"backend": "deoldify"}, {}):
+        job = Job(
+            source_path=Path("/tmp/in.mp4"),
+            output_path=Path("/tmp/out.mp4"),
+            pipeline=["colorizer"],
+            params=params,
+        )
+        assert proc.get_backend(job) == "ddcolor"
 
 
 def test_colorizer_styles():
@@ -72,7 +58,9 @@ def test_colorizer_falls_back_without_deps(tmp_path):
         params={"backend": "ddcolor", "style": "artistic"},
     )
 
-    proc.setup_model(job)  # ddcolor package not installed here
+    # Simulate the optional ML packages being absent, whatever this machine has
+    with patch.dict("sys.modules", {"torch": None}):
+        proc.setup_model(job)
     assert proc._backend == "ddcolor"
     assert proc._pipeline is None
 
@@ -107,3 +95,34 @@ def test_colorizer_yuv_preservation():
     assert y_channel[0, 0, 0] == 100
     assert y_channel[1, 0, 0] == 150
     assert y_channel[2, 0, 0] == 200
+
+
+def test_vendored_ddcolor_runs_end_to_end(tmp_path):
+    """The vendored DDColor model loads through the real loader and colorizes a frame.
+
+    Uses a tiny randomly-initialised checkpoint (real weights are ~870 MB), so it
+    checks the plumbing — loading, resizing, Lab round trip — not colour quality.
+    Skipped when the optional ML packages are not installed.
+    """
+    import pytest
+    torch = pytest.importorskip("torch")
+    cv2 = pytest.importorskip("cv2")
+    np = pytest.importorskip("numpy")
+    from videocraft.processors.archs.ddcolor import ColorizationPipeline, DDColor, build_ddcolor_model
+
+    net = DDColor(
+        encoder_name="convnext-t", decoder_name="MultiScaleColorDecoder",
+        input_size=[64, 64], num_output_channels=2, last_norm="Spectral",
+        do_normalize=False, num_queries=100, num_scales=3, dec_layers=9,
+    )
+    ckpt = tmp_path / "tiny.pth"
+    torch.save({"params": net.state_dict()}, ckpt)
+
+    model = build_ddcolor_model(
+        DDColor, model_path=str(ckpt), model_size="tiny", input_size=64,
+        device=torch.device("cpu"),
+    )
+    out = ColorizationPipeline(model, input_size=64).process(
+        (np.random.rand(30, 40, 3) * 255).astype(np.uint8)
+    )
+    assert out.shape == (30, 40, 3) and out.dtype == np.uint8
