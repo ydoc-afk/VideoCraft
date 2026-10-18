@@ -17,10 +17,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import urllib.request
 from pathlib import Path
 
+import requests
+
 from videocraft.core.config import AppConfig
+from videocraft.core.hf_auth import AUTH_STATUSES, DownloadAuthError, auth_headers, is_hf_url
 
 logger = logging.getLogger(__name__)
 
@@ -183,19 +185,34 @@ def ensure_model(key: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     part = path.with_name(path.name + ".part")
 
+    auth_error: DownloadAuthError | None = None
     for url in meta["urls"]:
         try:
             logger.info("Downloading %s from %s", key, url)
-            urllib.request.urlretrieve(url, str(part))
+            # requests drops the Authorization header on a cross-host redirect
+            # (Hugging Face redirects to its CDN), so the token stays on HF.
+            with requests.get(
+                url, stream=True, timeout=60, headers=auth_headers(url)
+            ) as resp:
+                if resp.status_code in AUTH_STATUSES and is_hf_url(url):
+                    auth_error = DownloadAuthError(resp.status_code, url)
+                    continue
+                resp.raise_for_status()
+                with open(part, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1 << 20):
+                        f.write(chunk)
             if not verify_sha256(part, meta.get("sha256")):
                 logger.warning("Checksum mismatch for %s from %s", key, url)
                 part.unlink(missing_ok=True)
                 continue
             part.rename(path)
             return path
-        except Exception as e:
+        except (requests.RequestException, OSError) as e:
             logger.warning("Download failed from %s: %s", url, e)
             part.unlink(missing_ok=True)
+
+    if auth_error is not None:
+        raise auth_error
 
     raise FileNotFoundError(
         f"Model '{key}' ({meta['filename']}) not found and could not be "

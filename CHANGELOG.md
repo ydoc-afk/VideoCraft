@@ -66,6 +66,11 @@ All notable changes to VideoCraft are documented here. The format follows
   wheel packages and publishes a GitHub release.
 - README: project status, install instructions, and release steps.
 
+- **Hugging Face token help**: when a model download is refused (HTTP
+  401/403/429) a window explains step by step how to create a free token,
+  tests it, saves it (owner-only file, sent only to huggingface.co) and
+  retries. Also available under Settings → Hugging Face, or via `HF_TOKEN`.
+
 ### Changed (packaging)
 - Code now lives in the `videocraft` package (`videocraft.core`,
   `videocraft.processors`, `videocraft.ui`); `requirements.txt` is replaced by
