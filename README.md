@@ -62,6 +62,8 @@ what you find in the [issue tracker](https://github.com/ydoc-afk/VideoCraft/issu
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions.
 
+Want to help test? Follow the [smoke test checklist](docs/SMOKE_TEST.md) and report what you find.
+
 ## Installation
 
 VideoCraft currently targets **Linux** (a Windows installer is planned). The AI tools run best on an
