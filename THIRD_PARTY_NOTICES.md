@@ -32,6 +32,12 @@ check each project for the authoritative terms.
 from <https://github.com/cszn/SCUNet> (Apache-2.0); local changes are marked
 in the file header.
 
+`processors/archs/ddcolor/` is the inference code of
+[DDColor](https://github.com/piddnad/DDColor) (Apache-2.0, license copy
+included in that folder), vendored at commit 2adb63f. It includes the ConvNeXt
+encoder from [Meta's ConvNeXt](https://github.com/facebookresearch/ConvNeXt)
+(MIT). Local changes are listed in `processors/archs/ddcolor/__init__.py`.
+
 ## FFmpeg
 
 VideoCraft runs FFmpeg as an external program that you install yourself; it is
@@ -44,5 +50,5 @@ with that build's license.
 
 Model weights are **not** distributed with VideoCraft. They are downloaded on
 first use from their upstream hosts (GitHub releases of Real-ESRGAN and
-KAIR/SCUNet, Hugging Face for DDColor and Deoldify) and remain under the
+KAIR/SCUNet, Hugging Face for DDColor) and remain under the
 licenses chosen by their authors. Demucs downloads its own weights.

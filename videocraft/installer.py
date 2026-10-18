@@ -150,6 +150,9 @@ _CHECKS = {
     ),
     "Upscaler (Real-ESRGAN)": "from realesrgan import RealESRGANer; print('ok')",
     "Denoiser (SCUNet)": "import einops, timm, cv2; print('ok')",
+    "Colorizer (DDColor)": (
+        "import cv2; from videocraft.processors.archs.ddcolor import DDColor; print('ok')"
+    ),
     "Vocal remover (Demucs)": "import demucs; print('ok')",
 }
 

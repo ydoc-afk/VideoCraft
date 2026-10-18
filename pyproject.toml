@@ -51,7 +51,7 @@ videocraft = "videocraft.cli:main"
 include = ["videocraft*"]
 
 [tool.setuptools.package-data]
-videocraft = ["assets/themes/*", "assets/icons/*"]
+videocraft = ["assets/themes/*", "assets/icons/*", "processors/archs/ddcolor/LICENSE"]
 
 [tool.setuptools.dynamic]
 version = { attr = "videocraft.__version__" }

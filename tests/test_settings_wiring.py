@@ -37,7 +37,6 @@ def test_tools_panel_seeded_from_config():
     cfg.upscaler.default_scale = 2
     cfg.upscaler.default_model = "RealESRGAN_x4plus_anime"
     cfg.gpu.tile_size = 192
-    cfg.colorizer.backend = "deoldify"
     cfg.colorizer.default_style = "stable"
     cfg.colorizer.saturation = 1.5
     cfg.hdr.peak_nits = 4000
@@ -48,7 +47,7 @@ def test_tools_panel_seeded_from_config():
     up = panel.get_params("upscaler")
     assert up["scale"] == 2 and up["model"] == "RealESRGAN_x4plus_anime" and up["tile_size"] == 192
     col = panel.get_params("colorizer")
-    assert (col["backend"], col["style"], col["saturation"]) == ("deoldify", "stable", 1.5)
+    assert (col["backend"], col["style"], col["saturation"]) == ("ddcolor", "stable", 1.5)
     assert panel.get_params("hdr")["peak_nits"] == 4000
 
     cfg.gpu.tile_size = 0

@@ -215,9 +215,6 @@ class ToolsPanel(QFrame):
         self.colorizer_backend.addItems([
             "DDColor (Artistic)",
             "DDColor (ModelScope)",
-            "Deoldify (Artistic)",
-            "Deoldify (Stable)",
-            "Deoldify (Video)",
         ])
         backend_layout.addWidget(self.colorizer_backend)
         backend_group.setLayout(backend_layout)
@@ -509,19 +506,11 @@ class ToolsPanel(QFrame):
         if tile > 0:
             self.upscaler_tile.setValue(max(self.upscaler_tile.minimum(), tile))
 
-        # Colorizer: backend + style → combo entry, saturation
-        backend_entries = {
-            ("ddcolor", "artistic"): "DDColor (Artistic)",
-            ("ddcolor", "stable"): "DDColor (ModelScope)",
-            ("ddcolor", "video"): "DDColor (Artistic)",
-            ("deoldify", "artistic"): "Deoldify (Artistic)",
-            ("deoldify", "stable"): "Deoldify (Stable)",
-            ("deoldify", "video"): "Deoldify (Video)",
-        }
-        text = backend_entries.get(
-            (config.colorizer.backend, config.colorizer.default_style), "DDColor (Artistic)"
+        # Colorizer: style → combo entry, saturation
+        style_entries = {"artistic": "DDColor (Artistic)", "stable": "DDColor (ModelScope)"}
+        self.colorizer_backend.setCurrentText(
+            style_entries.get(config.colorizer.default_style, "DDColor (Artistic)")
         )
-        self.colorizer_backend.setCurrentText(text)
         self.colorizer_saturation.setValue(config.colorizer.saturation)
 
         # HDR
@@ -555,14 +544,11 @@ class ToolsPanel(QFrame):
         }
 
     def _get_colorizer_params(self) -> dict:
-        # ColorizerProcessor expects backend ("ddcolor" | "deoldify") and
+        # ColorizerProcessor expects backend ("ddcolor") and
         # style ("artistic" | "stable" | "video") as separate params.
         backend_map = {
             "DDColor (Artistic)": ("ddcolor", "artistic"),
             "DDColor (ModelScope)": ("ddcolor", "stable"),
-            "Deoldify (Artistic)": ("deoldify", "artistic"),
-            "Deoldify (Stable)": ("deoldify", "stable"),
-            "Deoldify (Video)": ("deoldify", "video"),
         }
         backend, style = backend_map.get(
             self.colorizer_backend.currentText(), ("ddcolor", "artistic")
