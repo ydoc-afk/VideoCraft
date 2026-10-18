@@ -64,7 +64,7 @@ Use a JPG, a PNG, a WebP, a photo with an **odd size** (e.g. 1001×667), a **pho
 - [ ] Saved defaults (upscaler scale/model, colorizer, HDR nits) show up in the Tools tabs
 
 ## What to send back
-For each ❌ or odd result: the item number, your setup from section 0, what you expected, what happened, and the log panel text (Log panel → copy) plus the file type/size/resolution of the input. Report at <https://github.com/ydoc-afk/VideoCraft/issues>.
+For each ❌ or odd result: the item number, your setup from section 0, what you expected, what happened, and the text of the Log panel (select it and copy) plus the file type/size/resolution of the input. Report at <https://github.com/ydoc-afk/VideoCraft/issues>.
 
 ## Known limitations (don't report these)
 - Colorizer colours can flicker on moving footage.
