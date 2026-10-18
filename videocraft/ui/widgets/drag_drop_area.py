@@ -9,14 +9,11 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QHBoxLayout
 from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QPalette
 
+from videocraft.core.media import is_media
 from videocraft.core.theme import mark_hint
 
 logger = logging.getLogger(__name__)
 
-# Accepted file extensions
-_VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".mpg", ".mpeg"}
-_AUDIO_EXTS = {".mp3", ".aac", ".flac", ".wav", ".ogg", ".m4a"}
-_ALL_EXTS = _VIDEO_EXTS | _AUDIO_EXTS
 
 
 class DragDropArea(QFrame):
@@ -59,7 +56,7 @@ class DragDropArea(QFrame):
         layout.addWidget(self.label_title)
 
         # Hint
-        self.label_hint = QLabel("MP4, MKV, MOV, AVI, WebM, MP3, WAV, FLAC…")
+        self.label_hint = QLabel("Video, audio and photos: MP4, MKV, MP3, WAV, JPG, PNG…")
         self.label_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_hint.setStyleSheet("font-size: 10px;")
         mark_hint(self.label_hint, True)
@@ -94,7 +91,7 @@ class DragDropArea(QFrame):
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
             has_valid = any(
-                Path(u.toLocalFile()).suffix.lower() in _ALL_EXTS
+                is_media(u.toLocalFile())
                 for u in urls
             )
             if has_valid:
@@ -117,7 +114,7 @@ class DragDropArea(QFrame):
         files: list[Path] = []
         for url in event.mimeData().urls():
             path = Path(url.toLocalFile())
-            if path.suffix.lower() in _ALL_EXTS and path.exists():
+            if is_media(path) and path.exists():
                 files.append(path)
 
         if files:

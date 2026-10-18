@@ -13,6 +13,7 @@ from pathlib import Path
 
 from videocraft.core.ffmpeg import ffmpeg_cmd, ffprobe_cmd, with_threads
 from videocraft.core.job import Job
+from videocraft.core.media import is_image
 from videocraft.core.nvenc import video_encode_args
 from videocraft.core.process import Cancelled, run_cancellable
 from videocraft.core.vram_manager import vram_manager
@@ -89,9 +90,14 @@ class FrameProcessor(BaseProcessor, ABC):
             # the worker chains between pipeline steps and unlinks).
             self._temp_dir = Path(tempfile.mkdtemp(prefix="videocraft_"))
 
-            fps = ffprobe_fps(job.source_path) or "24"
-            duration = ffprobe_duration(job.source_path) or 0.0
-            yield f"[INFO] Source frame rate: {fps}"
+            photo = is_image(job.source_path)
+            if photo:
+                fps, duration = "24", 0.0  # a photo is one frame; no timing to probe
+                yield "[INFO] Source is a photo"
+            else:
+                fps = ffprobe_fps(job.source_path) or "24"
+                duration = ffprobe_duration(job.source_path) or 0.0
+                yield f"[INFO] Source frame rate: {fps}"
 
             frame_pattern = str(self._temp_dir / "%06d.png")
             total_frames = self.extract_frames(job.source_path, frame_pattern, duration)
@@ -129,18 +135,25 @@ class FrameProcessor(BaseProcessor, ABC):
                 job.progress = 0.1 + 0.9 * self._calc_progress(processed, total_frames)
 
             # Re-encode
-            yield "[INFO] Re-encoding video..."
             backup_existing(job.output_path)
-            if not self.reencode_video(
-                input_pattern=output_pattern,
-                output_path=job.output_path,
-                source_path=job.source_path,
-                fps=fps,
-                duration=duration,
-            ):
-                yield "[ERROR] Re-encoding failed"
-                job.status = "failed"
-                return
+            if photo:
+                yield "[INFO] Writing photo..."
+                if not self.write_photo(str(self._temp_dir / "000001_processed.png"), job.output_path):
+                    yield "[ERROR] Writing the photo failed"
+                    job.status = "failed"
+                    return
+            else:
+                yield "[INFO] Re-encoding video..."
+                if not self.reencode_video(
+                    input_pattern=output_pattern,
+                    output_path=job.output_path,
+                    source_path=job.source_path,
+                    fps=fps,
+                    duration=duration,
+                ):
+                    yield "[ERROR] Re-encoding failed"
+                    job.status = "failed"
+                    return
             job.progress = 1.0
             yield f"[SUCCESS] Complete: {job.output_path.name}"
 
@@ -225,6 +238,23 @@ class FrameProcessor(BaseProcessor, ABC):
         except subprocess.TimeoutExpired:
             logger.error("Re-encoding timed out")
             return False
+
+    def write_photo(self, processed_png: str, output_path: Path) -> bool:
+        """Write the processed frame to the photo's original format."""
+        quality = ["-q:v", "2"] if output_path.suffix.lower() in (".jpg", ".jpeg") else []
+        cmd = with_threads([
+            ffmpeg_cmd(), "-y", "-i", processed_png, "-frames:v", "1",
+            *quality, str(output_path),
+        ])
+        try:
+            result = run_cancellable(cmd, self._is_cancelled, 120)
+        except subprocess.TimeoutExpired:
+            logger.error("Writing the photo timed out")
+            return False
+        if result.returncode != 0:
+            logger.error("Writing the photo failed: %s", result.stderr[-500:])
+            return False
+        return True
 
     @staticmethod
     def _calc_progress(processed: int, total: int) -> float:

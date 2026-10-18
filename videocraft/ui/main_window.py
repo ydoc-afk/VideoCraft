@@ -19,6 +19,7 @@ from PyQt6.QtGui import QAction, QCloseEvent, QDragEnterEvent, QDropEvent
 from videocraft.core.config import AppConfig
 from videocraft.core.job import Job
 from videocraft.core.job_queue import JobQueue, is_ml_job
+from videocraft.core.media import AUDIO_EXTS, IMAGE_TOOLS, is_image, is_media, open_dialog_filter
 from videocraft.core.worker import Worker
 from videocraft.ui.panels.log_panel import LogPanel
 from videocraft.ui.panels.source_panel import SourcePanel
@@ -31,9 +32,6 @@ from videocraft.ui.dialogs.model_manager_dialog import ModelManagerDialog
 logger = logging.getLogger(__name__)
 
 # Accepted file extensions for drag-and-drop on the main window
-_VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".mpg", ".mpeg"}
-_AUDIO_EXTS = {".mp3", ".aac", ".flac", ".wav", ".ogg", ".m4a"}
-_ALL_EXTS = _VIDEO_EXTS | _AUDIO_EXTS
 
 
 def _try_qtawesome():
@@ -223,26 +221,21 @@ class MainWindow(QMainWindow):
         """Accept drag events with valid files."""
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
-            if any(Path(u.toLocalFile()).suffix.lower() in _ALL_EXTS for u in urls):
+            if any(is_media(u.toLocalFile()) for u in urls):
                 event.acceptProposedAction()
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Handle dropped files — add them to the queue."""
         for url in event.mimeData().urls():
             path = Path(url.toLocalFile())
-            if path.suffix.lower() in _ALL_EXTS and path.exists():
+            if is_media(path) and path.exists():
                 self._add_to_queue(path)
 
     # ── File actions ──
 
     def _on_open_file(self) -> None:
         """Open file dialog and add selected files to queue."""
-        filters = (
-            "Media Files (*.mp4 *.mkv *.mov *.avi *.webm *.flv *.wmv *.m4v *.mpg *.mpeg"
-            " *.mp3 *.aac *.flac *.wav *.ogg *.m4a);;"
-            "Video Files (*.mp4 *.mkv *.mov *.avi *.webm *.flv *.wmv *.m4v);;"
-            "Audio Files (*.mp3 *.aac *.flac *.wav *.ogg *.m4a)"
-        )
+        filters = open_dialog_filter()
         files, _ = QFileDialog.getOpenFileNames(
             self, "Open Media File(s)", "", filters
         )
@@ -256,12 +249,19 @@ class MainWindow(QMainWindow):
             return
         p = Path(folder)
         for f in sorted(p.iterdir()):
-            if f.suffix.lower() in _ALL_EXTS:
+            if is_media(f):
                 self._add_to_queue(f)
 
     def _add_to_queue(self, source_path: Path) -> None:
         """Create a job for the active tool tab and add it to the queue."""
         tool = self.tools_panel.current_tool()
+
+        if is_image(source_path) and tool not in IMAGE_TOOLS:
+            self.append_log(
+                f"[WARNING] Skipped {source_path.name}: photos work with the Upscaler, "
+                "Denoiser and Colorizer — pick one of those tabs"
+            )
+            return
 
         params = self.tools_panel.get_params(tool)
 
@@ -285,13 +285,15 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _output_extension(tool: str, params: dict, source_path: Path) -> str:
         """Pick the output file extension for a tool's actual output format."""
+        if is_image(source_path):
+            return source_path.suffix  # photos keep their format
         if tool == "converter":
             return "." + params.get("container", "mp4")
         if tool in ("upscaler", "denoiser", "colorizer"):
             return ".mp4"  # frame pipeline re-encodes to H.264 + AAC
         if tool == "hdr":
             return ".mkv"  # HEVC + copied source audio — MKV takes anything
-        if tool == "vocal_remover" and source_path.suffix.lower() in _AUDIO_EXTS:
+        if tool == "vocal_remover" and source_path.suffix.lower() in AUDIO_EXTS:
             return "." + params.get("output_format", "wav")
         return source_path.suffix  # vocal remover remux / upmixer keep container
 

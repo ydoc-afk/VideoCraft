@@ -71,6 +71,11 @@ All notable changes to VideoCraft are documented here. The format follows
   tests it, saves it (owner-only file, sent only to huggingface.co) and
   retries. Also available under Settings → Hugging Face, or via `HF_TOKEN`.
 
+- **Photo support**: the Upscaler, Denoiser and Colorizer accept JPG, PNG,
+  WebP, BMP and TIFF images and write the result in the same format. Other
+  tools skip photos with a log message. Supported file types now live in one
+  place (`videocraft/core/media.py`).
+
 ### Changed (packaging)
 - Code now lives in the `videocraft` package (`videocraft.core`,
   `videocraft.processors`, `videocraft.ui`); `requirements.txt` is replaced by
