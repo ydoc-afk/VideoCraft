@@ -3,8 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from core.job import Job
-from processors.audio.vocal_remover import VocalRemoverProcessor
+from videocraft.core.job import Job
+from videocraft.processors.audio.vocal_remover import VocalRemoverProcessor
 
 
 def _run(tmp_path, out_name, **params):
@@ -25,7 +25,7 @@ def _run(tmp_path, out_name, **params):
          patch.object(VocalRemoverProcessor, "_run_demucs", return_value=True), \
          patch.object(VocalRemoverProcessor, "_mix_stems", return_value=True), \
          patch.object(VocalRemoverProcessor, "_encode_audio", fake_encode), \
-         patch("processors.audio.vocal_remover.ffprobe_duration", return_value=1.0):
+         patch("videocraft.processors.audio.vocal_remover.ffprobe_duration", return_value=1.0):
         list(proc.process(job))
     return job, seen
 
@@ -51,7 +51,7 @@ def test_remux_maps_video_optionally():
         class R: returncode = 0; stderr = ""
         return R()
 
-    with patch("processors.audio.vocal_remover.run_cancellable", fake_run):
+    with patch("videocraft.processors.audio.vocal_remover.run_cancellable", fake_run):
         VocalRemoverProcessor()._remux_audio(Path("a.mp3"), Path("m.wav"), Path("o.mp4"))
     cmd = captured["cmd"]
     assert cmd[cmd.index("-map") + 1] == "0:v?"

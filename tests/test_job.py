@@ -1,6 +1,6 @@
 """Tests for core.job — Job dataclass."""
 
-from core.job import Job
+from videocraft.core.job import Job
 from pathlib import Path
 import uuid
 

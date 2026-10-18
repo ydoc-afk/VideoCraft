@@ -5,8 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
-from core.job import Job
-from processors.frame_processor import FrameProcessor
+from videocraft.core.job import Job
+from videocraft.processors.frame_processor import FrameProcessor
 
 
 def test_frame_processor_is_abstract():
@@ -77,7 +77,7 @@ def test_vram_cache_clear():
         pipeline=["upscaler"],
     )
 
-    with patch("processors.frame_processor.vram_manager") as mock_vram:
+    with patch("videocraft.processors.frame_processor.vram_manager") as mock_vram:
         with patch.object(proc, "extract_frames", return_value=0):
             list(proc.process(job))
             # clear_cache should have been called
@@ -94,7 +94,7 @@ def _make_proc():
 
 def test_reencode_cmd_pads_to_even_dimensions():
     """yuv420p needs even dimensions, so the re-encode pads odd-sized frames."""
-    from processors.frame_processor import FrameProcessor
+    from videocraft.processors.frame_processor import FrameProcessor
     from pathlib import Path
     cmd = FrameProcessor._build_reencode_cmd(
         Path("in/%06d.png"), Path("out"), Path("o.mp4"), Path("s.mp4"),
@@ -105,8 +105,8 @@ def test_reencode_cmd_pads_to_even_dimensions():
 def test_frame_processor_backs_up_existing_output(tmp_path):
     """An existing output file is renamed, not silently overwritten."""
     from unittest.mock import patch
-    from core.job import Job
-    from processors.frame_processor import FrameProcessor
+    from videocraft.core.job import Job
+    from videocraft.processors.frame_processor import FrameProcessor
 
     class Copy(FrameProcessor):
         def process_frame(self, frame_path, output_path, job):
@@ -126,8 +126,8 @@ def test_frame_processor_backs_up_existing_output(tmp_path):
 
     with patch.object(Copy, "extract_frames", fake_extract), \
          patch.object(Copy, "reencode_video", fake_reencode), \
-         patch("processors.frame_processor.ffprobe_fps", return_value="24"), \
-         patch("processors.frame_processor.ffprobe_duration", return_value=1.0):
+         patch("videocraft.processors.frame_processor.ffprobe_fps", return_value="24"), \
+         patch("videocraft.processors.frame_processor.ffprobe_duration", return_value=1.0):
         list(Copy().process(job))
 
     assert out.read_bytes() == b"new result"

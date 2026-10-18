@@ -30,14 +30,14 @@ def _mock_torch(has_cuda: bool, vram_gb: float = 0.0, name: str = "Mock GPU",
 def _cleanup_torch():
     """Remove mock torch from sys.modules and force a fresh import."""
     sys.modules.pop("torch", None)
-    if "core.vram_manager" in sys.modules:
-        del sys.modules["core.vram_manager"]
+    if "videocraft.core.vram_manager" in sys.modules:
+        del sys.modules["videocraft.core.vram_manager"]
 
 
 def _probe(**kwargs):
     """Build a freshly-probed manager with a mocked torch."""
     _mock_torch(**kwargs)
-    from core.vram_manager import VRAMManager
+    from videocraft.core.vram_manager import VRAMManager
     mgr = VRAMManager()
     mgr.probe()
     return mgr
@@ -152,7 +152,7 @@ def test_clamp_tile_backward_compat():
 
 def test_apply_device_preference():
     """cpu forces CPU on a CUDA box; cuda:N is honored only when CUDA exists."""
-    from core.vram_manager import VRAMManager
+    from videocraft.core.vram_manager import VRAMManager
 
     mgr = VRAMManager()
     mgr.has_cuda = True

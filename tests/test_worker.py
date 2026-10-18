@@ -8,8 +8,8 @@ app = QApplication.instance() or QApplication([])
 
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-from core.job import Job
-from core.worker import Worker, get_processor
+from videocraft.core.job import Job
+from videocraft.core.worker import Worker, get_processor
 
 
 def test_worker_emits_log_lines():
@@ -56,7 +56,7 @@ def test_worker_checks_cancellation():
 
 def test_get_processor_converter():
     """get_processor returns correct processor for 'converter'."""
-    from processors.converter import ConverterProcessor
+    from videocraft.processors.converter import ConverterProcessor
     proc = get_processor("converter")
     assert isinstance(proc, ConverterProcessor)
 

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from PyQt6.QtWidgets import QApplication
 app = QApplication.instance() or QApplication([])
 
-from ui.panels.log_panel import LogPanel
+from videocraft.ui.panels.log_panel import LogPanel
 
 
 def test_log_panel_initial_state():

@@ -6,8 +6,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from unittest.mock import patch, MagicMock, mock_open
 from pathlib import Path
 from datetime import datetime
-from processors.converter import ConverterProcessor, backup_existing
-from core.job import Job
+from videocraft.processors.converter import ConverterProcessor, backup_existing
+from videocraft.core.job import Job
 import tempfile, shutil
 
 
@@ -49,7 +49,7 @@ def test_converter_builds_ffmpeg_command():
             "crf": 23,
         },
     )
-    with patch("core.nvenc.nvenc_encoder_for", return_value=None):
+    with patch("videocraft.core.nvenc.nvenc_encoder_for", return_value=None):
         cmd = proc._build_command(job)
     assert "ffmpeg" in cmd[0]
     assert "-y" in cmd
@@ -73,7 +73,7 @@ def test_converter_uses_nvenc_when_available():
             "crf": 23,
         },
     )
-    with patch("core.nvenc.nvenc_encoder_for", return_value="hevc_nvenc"):
+    with patch("videocraft.core.nvenc.nvenc_encoder_for", return_value="hevc_nvenc"):
         cmd = proc._build_command(job)
     assert "hevc_nvenc" in cmd
     assert "libx265" not in cmd
@@ -115,10 +115,10 @@ def test_converter_process_yields_lines():
     mock_proc.wait.return_value = 0
 
     with patch("subprocess.Popen", return_value=mock_proc):
-        with patch("processors.converter.ffprobe_duration", return_value=20.0):
+        with patch("videocraft.processors.converter.ffprobe_duration", return_value=20.0):
             # Command building probes NVENC via subprocess.run; stub it so the
             # globally-patched Popen isn't consumed by the probe.
-            with patch("core.nvenc.nvenc_encoder_for", return_value=None):
+            with patch("videocraft.core.nvenc.nvenc_encoder_for", return_value=None):
                 lines = list(proc.process(job))
 
     assert len(lines) >= 2
@@ -152,7 +152,7 @@ def test_webm_swaps_in_compatible_codecs():
         pipeline=["converter"],
         params={"container": "webm", "video_codec": "h264", "audio_codec": "aac"},
     )
-    with patch("core.nvenc.nvenc_encoder_for", return_value=None):
+    with patch("videocraft.core.nvenc.nvenc_encoder_for", return_value=None):
         cmd = ConverterProcessor()._build_command(job)
     assert cmd[cmd.index("-c:v") + 1] == "libvpx-vp9"
     assert cmd[cmd.index("-c:a") + 1] == "libopus"

@@ -6,10 +6,10 @@ from unittest.mock import patch
 from PyQt6.QtWidgets import QApplication
 app = QApplication.instance() or QApplication([])
 
-from core import ffmpeg
-from core.config import AppConfig
-from core.job import Job
-from ui.panels.tools_panel import ToolsPanel
+from videocraft.core import ffmpeg
+from videocraft.core.config import AppConfig
+from videocraft.core.job import Job
+from videocraft.ui.panels.tools_panel import ToolsPanel
 
 
 def teardown_function():
@@ -24,10 +24,10 @@ def test_with_threads_inserts_before_output():
 
 
 def test_converter_command_uses_configured_threads():
-    from processors.converter import ConverterProcessor
+    from videocraft.processors.converter import ConverterProcessor
     ffmpeg.set_threads(2)
     job = Job(source_path=Path("/tmp/in.mp4"), output_path=Path("/tmp/out.mp4"), pipeline=["converter"])
-    with patch("core.nvenc.nvenc_encoder_for", return_value=None):
+    with patch("videocraft.core.nvenc.nvenc_encoder_for", return_value=None):
         cmd = ConverterProcessor()._build_command(job)
     assert cmd[-3:] == ["-threads", "2", "/tmp/out.mp4"]
 
@@ -72,8 +72,8 @@ def test_old_config_with_tonemap_still_loads(tmp_path):
 
 
 def test_main_window_applies_runtime_settings():
-    from core.vram_manager import vram_manager
-    from ui.main_window import MainWindow
+    from videocraft.core.vram_manager import vram_manager
+    from videocraft.ui.main_window import MainWindow
 
     win = MainWindow(ffmpeg_path=Path("ffmpeg"))
     old_device = vram_manager.device

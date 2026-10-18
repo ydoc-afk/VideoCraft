@@ -7,12 +7,12 @@ from PyQt6.QtWidgets import QApplication
 app = QApplication.instance() or QApplication([])
 
 from pathlib import Path
-from core.job import Job
-from core.job_queue import JobQueue
-from ui.panels.source_panel import SourcePanel
-from ui.panels.output_panel import OutputPanel
-from ui.panels.tools_panel import ToolsPanel
-from ui.panels.queue_panel import QueuePanel
+from videocraft.core.job import Job
+from videocraft.core.job_queue import JobQueue
+from videocraft.ui.panels.source_panel import SourcePanel
+from videocraft.ui.panels.output_panel import OutputPanel
+from videocraft.ui.panels.tools_panel import ToolsPanel
+from videocraft.ui.panels.queue_panel import QueuePanel
 
 
 def test_source_panel_creates():

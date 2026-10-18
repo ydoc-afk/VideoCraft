@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "videocraft"
+dynamic = ["version"]
+description = "AI video enhancement: upscale, denoise, colorize, HDR-convert, convert and re-encode video"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-only" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video :: Conversion",
+]
+dependencies = [
+    "PyQt6>=6.6.0",
+    "qt-material>=2.14.0",
+    "qtawesome>=1.3.0",
+    "numpy>=1.24.0",
+    "Pillow>=10.0.0",
+    "tomli-w>=1.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "requests>=2.31.0",
+    "tqdm>=4.66.0",
+]
+
+[project.optional-dependencies]
+# AI tools. Prefer `videocraft setup`, which picks the right PyTorch build
+# for your GPU first and then installs the rest of this list.
+ml = [
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "basicsr>=1.4.2",
+    "realesrgan>=0.3.0",
+    "opencv-python>=4.8.0",
+    "einops",
+    "timm",
+    "demucs>=4.0.0",
+]
+dev = ["pytest"]
+
+[project.scripts]
+videocraft = "videocraft.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["videocraft*"]
+
+[tool.setuptools.package-data]
+videocraft = ["assets/themes/*", "assets/icons/*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "videocraft.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -8,9 +8,9 @@ app = QApplication.instance() or QApplication([])
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from core.job import Job
-from core.job_queue import JobQueue
-from ui.dialogs.preflight_dialog import PreflightDialog, PreflightChecker
+from videocraft.core.job import Job
+from videocraft.core.job_queue import JobQueue
+from videocraft.ui.dialogs.preflight_dialog import PreflightDialog, PreflightChecker
 
 
 def test_preflight_checker_ffmpeg():
@@ -81,14 +81,14 @@ def test_preflight_checker_models(tmp_path):
 
     # Point the registry at an empty dir so locally installed models
     # don't leak into the test.
-    with patch("core.models_registry.get_models_dir", return_value=tmp_path):
+    with patch("videocraft.core.models_registry.get_models_dir", return_value=tmp_path):
         # Converter needs no models
         assert checker.check_models(job) is True
         # Upscaler needs at least one model — none present
         assert checker.check_models(job_ml) is False
 
         # Present model satisfies the check
-        from core.models_registry import MODELS
+        from videocraft.core.models_registry import MODELS
         (tmp_path / MODELS["realesrgan-x4plus"]["filename"]).write_bytes(b"x")
         assert checker.check_models(job_ml) is True
 

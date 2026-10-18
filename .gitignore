@@ -13,18 +13,10 @@ __pycache__/
 venv/
 env/
 
-# ── PyInstaller build output ──
+# ── Build output ──
 /build/
 /dist/
 *.manifest
-
-# ── Bundled FFmpeg binaries (downloaded per-platform, not versioned) ──
-assets/bin/*
-!assets/bin/.gitkeep
-
-# ── ML model weights (downloaded on first use, not versioned) ──
-models/*
-!models/.gitkeep
 
 # ── User config / logs ──
 *.log
@@ -51,8 +43,6 @@ Thumbs.db
 *.onnx
 *.part
 
-# ── Release artifacts ──
-*.AppImage
 
 # ── Test media / coverage ──
 *.mp4
