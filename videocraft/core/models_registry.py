@@ -98,36 +98,6 @@ MODELS: dict[str, dict] = {
         ],
         "sha256": None,
     },
-    "deoldify-artistic": {
-        "display": "Deoldify (Artistic)",
-        "tool": "colorizer",
-        "size_mb": 243,
-        "filename": "ColorizeArtistic_gen.pth",
-        "urls": [
-            "https://data.deepai.org/deoldify/ColorizeArtistic_gen.pth",
-        ],
-        "sha256": None,
-    },
-    "deoldify-stable": {
-        "display": "Deoldify (Stable)",
-        "tool": "colorizer",
-        "size_mb": 834,
-        "filename": "ColorizeStable_gen.pth",
-        "urls": [
-            "https://huggingface.co/databuzzword/deoldify-stable/resolve/main/ColorizeStable_gen.pth",
-        ],
-        "sha256": None,
-    },
-    "deoldify-video": {
-        "display": "Deoldify (Video)",
-        "tool": "colorizer",
-        "size_mb": 243,
-        "filename": "ColorizeVideo_gen.pth",
-        "urls": [
-            "https://data.deepai.org/deoldify/ColorizeVideo_gen.pth",
-        ],
-        "sha256": None,
-    },
 }
 
 

@@ -21,7 +21,7 @@ A cross-platform desktop application for AI-powered video and audio enhancement.
 |------|-------------|--------|
 | **Upscaler** | 2× or 4× super-resolution with Real-ESRGAN (general & anime models) | Real-ESRGAN |
 | **Denoiser** | Remove noise and compression artifacts | SCUNet |
-| **Colorizer** | Add color to black & white footage, preserving original luminance | DDColor / Deoldify |
+| **Colorizer** | Add color to black & white footage, preserving original luminance | DDColor |
 
 ### Video & Audio Tools
 
@@ -53,8 +53,9 @@ what you find in the [issue tracker](https://github.com/ydoc-afk/VideoCraft/issu
 - **Needs optional ML packages and a GPU for good speed:** Upscaler, Denoiser and Vocal Remover.
   If the packages are missing, these tools **copy the input through unchanged** and log a
   warning — check the log if the output looks identical to the input.
-- **Colorizer is a placeholder:** the DDColor / Deoldify inference packages are not available
-  on PyPI yet, so it currently passes frames through unchanged.
+- **Colorizer uses DDColor** (inference code vendored from the upstream project). It colorizes each
+  frame on its own, so expect some colour flicker on moving footage; it has not been tested with real
+  weights on a GPU yet.
 - Model downloads are not checksum-verified yet.
 - Linux only for now; AMD GPUs (ROCm) are untested.
 
@@ -108,7 +109,7 @@ Tools that need ML fall back to pass-through with a warning if they are missing.
 |------|----------|
 | Upscaler | `torch`, `torchvision`, `basicsr`, `realesrgan`, `opencv-python` |
 | Denoiser | `torch`, `einops`, `timm`, `opencv-python` |
-| Colorizer | `torch`, `opencv-python` + DDColor or Deoldify inference packages (not available yet) |
+| Colorizer | `torch`, `opencv-python` (the DDColor code is built in) |
 | Vocal Remover | `demucs` (downloads its own weights on first run) |
 
 `videocraft setup --gpu auto|nvidia|cpu` can be re-run at any time; `--dry-run` shows what it would install.
@@ -188,7 +189,6 @@ default_model = "RealESRGAN_x4plus"
 [colorizer]
 default_style = "artistic"
 saturation = 1.0
-backend = "ddcolor"      # ddcolor | deoldify
 
 [hdr]
 peak_nits = 1000
@@ -226,9 +226,6 @@ Models are managed through the **Model Manager** (Tools → Model Manager). Weig
 | SCUNet (Color, Gaussian σ25) | Denoiser | 69 MB | KAIR |
 | DDColor (Artistic) | Colorizer | 875 MB | HuggingFace |
 | DDColor (ModelScope) | Colorizer | 875 MB | HuggingFace |
-| Deoldify (Artistic) | Colorizer | 243 MB | DeepAI |
-| Deoldify (Stable) | Colorizer | 834 MB | HuggingFace |
-| Deoldify (Video) | Colorizer | 243 MB | DeepAI |
 
 Demucs (vocal remover) downloads its own weights automatically on first run.
 
@@ -272,9 +269,9 @@ VideoCraft
 │   │   ├── frame_processor.py # Frame extraction/inference/re-encode base
 │   │   ├── upscaler.py        # Real-ESRGAN upscaling
 │   │   ├── denoiser.py        # SCUNet denoising
-│   │   ├── colorizer.py       # DDColor / Deoldify colorization
+│   │   ├── colorizer.py       # DDColor colorization
 │   │   ├── hdr_converter.py   # SDR → HDR10/HLG
-│   │   ├── archs/             # Vendored model architectures (SCUNet)
+│   │   ├── archs/             # Vendored model code (SCUNet, DDColor)
 │   │   └── audio/
 │   │       ├── vocal_remover.py # Demucs stem separation
 │   │       └── upmixer.py       # Stereo → 5.1/7.1 upmix
@@ -344,7 +341,6 @@ VideoCraft is free software, licensed under the [GNU General Public License v3.0
 - [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) — video upscaling
 - [SCUNet / KAIR](https://github.com/cszn/KAIR) — video denoising
 - [DDColor](https://github.com/piddnad/DDColor) — colorization
-- [Deoldify](https://github.com/jantic/Deoldify) — colorization
 - [Demucs](https://github.com/facebookresearch/demucs) — stem separation
 - [FFmpeg](https://ffmpeg.org/) — video/audio processing
 - [qt-material](https://github.com/UN-GCPDS/qt-material) — theming
