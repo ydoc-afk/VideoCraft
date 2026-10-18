@@ -98,8 +98,13 @@ def test_ensure_model_raises_auth_error_on_429_and_sends_token():
     assert get.call_args.kwargs["headers"] == {"Authorization": "Bearer hf_tok"}
 
 
-def test_ensure_model_does_not_send_token_to_github():
+def test_ensure_model_does_not_send_token_to_github(monkeypatch):
+    import hashlib
     hf_auth.save_token("hf_tok")
+    # The fake download is b"weights"; pin its digest so the checksum passes
+    monkeypatch.setitem(
+        models_registry.MODELS["realesrgan-x4plus"], "sha256", hashlib.sha256(b"weights").hexdigest()
+    )
     with patch("requests.get", return_value=_fake_get(200)) as get:
         path = models_registry.ensure_model("realesrgan-x4plus")
     assert path.read_bytes() == b"weights"

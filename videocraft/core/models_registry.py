@@ -6,8 +6,12 @@ resolve model files through this module so filenames and locations agree.
 Notes:
 - Filenames match the upstream release names so manually downloaded files
   are picked up as-is.
-- sha256 is optional; None skips verification (upstream projects do not
-  publish official digests). All URLs verified live 2026-07-04.
+- sha256 pins the exact upstream file (upstream projects do not publish
+  official digests, so these were computed by downloading each file once with
+  the "Model hashes" workflow / scripts/compute_model_hashes.py on 2026-10-18).
+  A download that does not match is discarded. If an upstream file is
+  re-uploaded, re-run the workflow and update the value. A None digest skips
+  verification — tests require every shipped model to have one.
 - Demucs (vocal remover) is absent on purpose: it downloads and caches its
   own weights via torch hub on first run.
 """
@@ -36,7 +40,7 @@ MODELS: dict[str, dict] = {
         "urls": [
             "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
         ],
-        "sha256": None,
+        "sha256": "4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1",
     },
     "realesrgan-x2plus": {
         "display": "RealESRGAN x2plus (General, 2x)",
@@ -46,7 +50,7 @@ MODELS: dict[str, dict] = {
         "urls": [
             "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
         ],
-        "sha256": None,
+        "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb",
     },
     "realesrgan-x4plus-anime": {
         "display": "RealESRGAN x4plus Anime 6B (4x)",
@@ -56,7 +60,7 @@ MODELS: dict[str, dict] = {
         "urls": [
             "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth",
         ],
-        "sha256": None,
+        "sha256": "f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7e91c911a61f155e99da",
     },
     "scunet-color-real": {
         "display": "SCUNet (Color, real-world noise)",
@@ -66,7 +70,7 @@ MODELS: dict[str, dict] = {
         "urls": [
             "https://github.com/cszn/KAIR/releases/download/v1.0/scunet_color_real_psnr.pth",
         ],
-        "sha256": None,
+        "sha256": "fa78899ba2caec9d235a900e91d96c689da71c42029230c2028b00f09f809c2e",
     },
     "scunet-color-gaussian": {
         "display": "SCUNet (Color, Gaussian noise σ25)",
@@ -76,27 +80,27 @@ MODELS: dict[str, dict] = {
         "urls": [
             "https://github.com/cszn/KAIR/releases/download/v1.0/scunet_color_25.pth",
         ],
-        "sha256": None,
+        "sha256": "6b4e572fe69b1530aade8b7856b18b9e6ddf9cf2bd87c21bf045b51662096320",
     },
     "ddcolor-artistic": {
         "display": "DDColor (Artistic)",
         "tool": "colorizer",
-        "size_mb": 875,
+        "size_mb": 870,
         "filename": "ddcolor_artistic.pth",
         "urls": [
             "https://huggingface.co/piddnad/DDColor-models/resolve/main/ddcolor_artistic.pth",
         ],
-        "sha256": None,
+        "sha256": "a591ee5beedad36de703d8977e92d0c30c1eedc6453fd1b300f3b460842a23a9",
     },
     "ddcolor-modelscope": {
         "display": "DDColor (ModelScope)",
         "tool": "colorizer",
-        "size_mb": 875,
+        "size_mb": 870,
         "filename": "ddcolor_modelscope.pth",
         "urls": [
             "https://huggingface.co/piddnad/DDColor-models/resolve/main/ddcolor_modelscope.pth",
         ],
-        "sha256": None,
+        "sha256": "17c460d7e55b32a598370621d77173be59e03c24b0823f06821db23a50c263ce",
     },
 }
 
@@ -140,6 +144,63 @@ def verify_sha256(path: Path, expected: str | None) -> bool:
     return sha.hexdigest() == expected
 
 
+class ChecksumMismatchError(FileNotFoundError):
+    """A downloaded model did not match its pinned SHA-256 and was discarded."""
+
+    def __init__(self, key: str, filename: str) -> None:
+        self.key = key
+        super().__init__(
+            f"The downloaded file for '{key}' ({filename}) did not match its expected "
+            "checksum and was discarded. The upstream file may have changed or the "
+            "download was corrupted — try again, and if it keeps happening please "
+            "report it at https://github.com/ydoc-afk/VideoCraft/issues"
+        )
+
+
+def sha256_file(path: Path, progress=None, is_cancelled=None) -> str:
+    """SHA-256 of a file, read in 1 MiB chunks.
+
+    progress(bytes_done) is called per chunk; if is_cancelled() turns true the
+    hash is abandoned and "" is returned.
+    """
+    sha = hashlib.sha256()
+    done = 0
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            if is_cancelled is not None and is_cancelled():
+                return ""
+            sha.update(chunk)
+            done += len(chunk)
+            if progress is not None:
+                progress(done)
+    return sha.hexdigest()
+
+
+# verify_model() results
+VERIFIED = "verified"        # matches the pinned checksum
+MISMATCH = "mismatch"        # differs from the pinned checksum
+UNVERIFIED = "unverified"    # installed, but no checksum is pinned for it
+MISSING = "missing"          # not installed
+
+
+def verify_model(key: str, progress=None, is_cancelled=None) -> tuple[str, str]:
+    """Check an installed model against its pinned checksum.
+
+    Returns (status, sha256). sha256 is "" when the model is missing or the
+    check was cancelled.
+    """
+    path = model_path(key)
+    if not path.exists():
+        return MISSING, ""
+    digest = sha256_file(path, progress, is_cancelled)
+    if not digest:
+        return UNVERIFIED, ""
+    expected = MODELS[key].get("sha256")
+    if not expected:
+        return UNVERIFIED, digest
+    return (VERIFIED if digest == expected else MISMATCH), digest
+
+
 def ensure_model(key: str) -> Path:
     """Return the model path, downloading it if missing.
 
@@ -156,6 +217,7 @@ def ensure_model(key: str) -> Path:
     part = path.with_name(path.name + ".part")
 
     auth_error: DownloadAuthError | None = None
+    mismatch = False
     for url in meta["urls"]:
         try:
             logger.info("Downloading %s from %s", key, url)
@@ -174,6 +236,7 @@ def ensure_model(key: str) -> Path:
             if not verify_sha256(part, meta.get("sha256")):
                 logger.warning("Checksum mismatch for %s from %s", key, url)
                 part.unlink(missing_ok=True)
+                mismatch = True
                 continue
             part.rename(path)
             return path
@@ -181,6 +244,8 @@ def ensure_model(key: str) -> Path:
             logger.warning("Download failed from %s: %s", url, e)
             part.unlink(missing_ok=True)
 
+    if mismatch:
+        raise ChecksumMismatchError(key, meta["filename"])
     if auth_error is not None:
         raise auth_error
 
