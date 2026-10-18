@@ -34,6 +34,7 @@ A cross-platform desktop application for AI-powered video and audio enhancement.
 
 ### Core Capabilities
 
+- **Photos too** — the Upscaler, Denoiser and Colorizer accept JPG, PNG, WebP, BMP and TIFF stills and write the result in the same format (the other tools need video or audio)
 - **Pipeline chaining** — run multiple tools in sequence (e.g. denoise → upscale → HDR)
 - **NVENC hardware encoding** — automatic NVIDIA GPU encoding for H.264/H.265/AV1 with software fallback
 - **Adaptive VRAM management** — auto-detects GPU memory and picks safe tile/batch sizes (GTX 1650 → RTX 5090)
@@ -136,7 +137,7 @@ The app checks for FFmpeg on startup (on your PATH, or the path set in Settings 
 
 ### Workflow
 
-1. **Open files** — use File → Open, Open Folder, or drag-and-drop onto the window
+1. **Open files** — use File → Open, Open Folder, or drag-and-drop onto the window (video, audio, or photos)
 2. **Select a tool** — choose from the Tools panel tabs (Upscaler, Denoiser, Colorizer, etc.)
 3. **Configure settings** — adjust tool-specific parameters (scale factor, model, quality, etc.)
 4. **Set output** — pick the destination folder in the Output panel (format, codec and quality for conversions live on the **Convert** tab)

@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QMimeData
 
+from videocraft.core.media import is_media, open_dialog_filter
 from videocraft.core.theme import mark_hint
 from PyQt6.QtGui import QPixmap, QPainter
 
@@ -28,10 +29,6 @@ from videocraft.ui.widgets.drag_drop_area import DragDropArea
 
 logger = logging.getLogger(__name__)
 
-# Accepted extensions (video + audio — audio tools accept audio-only sources)
-_VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".mpg", ".mpeg"}
-_AUDIO_EXTS = {".mp3", ".aac", ".flac", ".wav", ".ogg", ".m4a"}
-_MEDIA_EXTS = _VIDEO_EXTS | _AUDIO_EXTS
 
 
 class SourcePanel(QFrame):
@@ -60,7 +57,7 @@ class SourcePanel(QFrame):
 
         # Visible drop target (the whole panel accepts drops too). Capped so
         # it doesn't dominate the panel's height and crowd the panels below.
-        self.drop_area = DragDropArea("Drop video or audio files here")
+        self.drop_area = DragDropArea("Drop video, audio or photos here")
         self.drop_area.files_dropped.connect(self._on_files_dropped)
         self.drop_area.setMaximumHeight(84)
         layout.addWidget(self.drop_area)
@@ -93,18 +90,13 @@ class SourcePanel(QFrame):
 
     def _open_files(self) -> None:
         """Open file dialog for media files."""
-        filters = (
-            "Media Files (*.mp4 *.mkv *.mov *.avi *.webm *.flv *.wmv *.m4v *.mpg *.mpeg"
-            " *.mp3 *.aac *.flac *.wav *.ogg *.m4a);;"
-            "Video Files (*.mp4 *.mkv *.mov *.avi *.webm *.flv *.wmv *.m4v);;"
-            "Audio Files (*.mp3 *.aac *.flac *.wav *.ogg *.m4a)"
-        )
+        filters = open_dialog_filter()
         files, _ = QFileDialog.getOpenFileNames(
             self, "Open Media File(s)", "", filters
         )
         for f in files:
             p = Path(f)
-            if p.suffix.lower() in _MEDIA_EXTS and p not in self._selected_files:
+            if is_media(p) and p not in self._selected_files:
                 self._selected_files.append(p)
         self._update_display()
 
@@ -114,7 +106,7 @@ class SourcePanel(QFrame):
         if not folder:
             return
         for p in sorted(Path(folder).iterdir()):
-            if p.suffix.lower() in _MEDIA_EXTS and p not in self._selected_files:
+            if is_media(p) and p not in self._selected_files:
                 self._selected_files.append(p)
         self._update_display()
 
@@ -186,14 +178,14 @@ class SourcePanel(QFrame):
         """Accept drag events with video files."""
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
-            if any(Path(u.toLocalFile()).suffix.lower() in _MEDIA_EXTS for u in urls):
+            if any(is_media(u.toLocalFile()) for u in urls):
                 event.acceptProposedAction()
 
     def dropEvent(self, event) -> None:
         """Handle dropped video files."""
         for url in event.mimeData().urls():
             p = Path(url.toLocalFile())
-            if p.suffix.lower() in _MEDIA_EXTS and p not in self._selected_files:
+            if is_media(p) and p not in self._selected_files:
                 self._selected_files.append(p)
         self._update_display()
 
