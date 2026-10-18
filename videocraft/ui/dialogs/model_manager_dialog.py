@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 
+from videocraft.core.hf_auth import AUTH_STATUSES, auth_headers, is_hf_url
 from videocraft.core.models_registry import MODELS, get_models_dir, model_path, verify_sha256
 from videocraft.core.theme import mark_hint
 
@@ -48,6 +49,7 @@ class _DownloadWorker(QThread):
         self.dest = dest
         self.sha256 = sha256
         self._cancelled = False
+        self.auth_status: int | None = None  # set when a token may fix the failure
 
     def cancel(self) -> None:
         """Request cooperative cancellation."""
@@ -57,7 +59,15 @@ class _DownloadWorker(QThread):
         part = self.dest.with_name(self.dest.name + ".part")
         try:
             self.dest.parent.mkdir(parents=True, exist_ok=True)
-            resp = requests.get(self.url, stream=True, timeout=60)
+            resp = requests.get(
+                self.url, stream=True, timeout=60, headers=auth_headers(self.url)
+            )
+            if resp.status_code in AUTH_STATUSES and is_hf_url(self.url):
+                self.auth_status = resp.status_code
+                self.download_error.emit(
+                    f"Hugging Face refused the download (HTTP {resp.status_code})."
+                )
+                return
             resp.raise_for_status()
 
             total = int(resp.headers.get("content-length", 0))
@@ -211,6 +221,13 @@ class ModelManagerDialog(QDialog):
         def finish(error: str | None) -> None:
             progress.close()
             self._populate_table()
+            if worker.auth_status is not None and error:
+                # A Hugging Face token may fix this: guide the user, then retry once.
+                from videocraft.ui.dialogs.hf_token_dialog import HFTokenDialog
+
+                if HFTokenDialog(self, worker.auth_status).exec() == QDialog.DialogCode.Accepted:
+                    self._start_download(key, on_done)
+                    return
             on_done(error)
 
         worker.progress.connect(update_progress)

@@ -232,6 +232,18 @@ Models are managed through the **Model Manager** (Tools → Model Manager). Weig
 
 Demucs (vocal remover) downloads its own weights automatically on first run.
 
+### Hugging Face token (only if a download fails)
+
+Most downloads need no account. If Hugging Face rate-limits you or a model requires sign-in
+(the app tells you with a "Hugging Face access token" window), a **free** token fixes it:
+
+1. Create a free account at [huggingface.co/join](https://huggingface.co/join).
+2. Open [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → **Create new token** → type **Read**.
+3. Copy the token (it starts with `hf_`) and paste it into the window, or into **Settings → Hugging Face**.
+
+The token is stored in `~/.config/videocraftapp/hf_token` (owner-readable only) and is only sent to
+huggingface.co. You can also set the `HF_TOKEN` environment variable instead.
+
 ## Architecture
 
 ```

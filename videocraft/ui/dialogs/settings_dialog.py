@@ -115,8 +115,46 @@ class SettingsDialog(QDialog):
         concurrent_layout.addStretch()
         layout.addLayout(concurrent_layout)
 
+        # Hugging Face token (model downloads)
+        hf_group = QGroupBox("Hugging Face (model downloads)")
+        hf_layout = QHBoxLayout(hf_group)
+        self.lbl_hf_status = QLabel("")
+        hf_layout.addWidget(self.lbl_hf_status, 1)
+        self.btn_hf_setup = QPushButton("Set up token…")
+        self.btn_hf_setup.setToolTip("Step-by-step help to create and save a free access token")
+        self.btn_hf_setup.clicked.connect(self._on_hf_setup)
+        hf_layout.addWidget(self.btn_hf_setup)
+        self.btn_hf_remove = QPushButton("Remove")
+        self.btn_hf_remove.clicked.connect(self._on_hf_remove)
+        hf_layout.addWidget(self.btn_hf_remove)
+        layout.addWidget(hf_group)
+        self._refresh_hf_status()
+
         layout.addStretch()
         return group
+
+    def _refresh_hf_status(self) -> None:
+        from videocraft.core import hf_auth
+
+        saved = hf_auth.saved_token() is not None
+        if hf_auth.get_token() and not saved:
+            text = "Using the token from your HF_TOKEN environment variable."
+        else:
+            text = "Token saved on this computer." if saved else "No token set (usually not needed)."
+        self.lbl_hf_status.setText(text)
+        self.btn_hf_remove.setEnabled(saved)
+
+    def _on_hf_setup(self) -> None:
+        from videocraft.ui.dialogs.hf_token_dialog import HFTokenDialog
+
+        HFTokenDialog(self).exec()
+        self._refresh_hf_status()
+
+    def _on_hf_remove(self) -> None:
+        from videocraft.core import hf_auth
+
+        hf_auth.save_token("")
+        self._refresh_hf_status()
 
     def _build_ffmpeg_tab(self) -> QGroupBox:
         group = QGroupBox()
