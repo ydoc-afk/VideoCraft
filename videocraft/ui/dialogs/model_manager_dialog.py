@@ -22,7 +22,16 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 
 from videocraft.core.hf_auth import AUTH_STATUSES, auth_headers, is_hf_url
-from videocraft.core.models_registry import MODELS, get_models_dir, model_path, verify_sha256
+from videocraft.core.models_registry import (
+    MISMATCH,
+    MODELS,
+    UNVERIFIED,
+    VERIFIED,
+    get_models_dir,
+    model_path,
+    verify_model,
+    verify_sha256,
+)
 from videocraft.core.theme import mark_hint
 
 logger = logging.getLogger(__name__)
@@ -86,7 +95,10 @@ class _DownloadWorker(QThread):
 
             if not verify_sha256(part, self.sha256):
                 part.unlink(missing_ok=True)
-                self.download_error.emit("Checksum mismatch — file discarded")
+                self.download_error.emit(
+                    "The downloaded file did not match its expected checksum and was discarded. "
+                    "The upstream file may have changed — please report it on the VideoCraft issue tracker."
+                )
                 return
 
             part.rename(self.dest)
@@ -95,6 +107,28 @@ class _DownloadWorker(QThread):
         except (requests.RequestException, OSError) as e:
             part.unlink(missing_ok=True)
             self.download_error.emit(str(e))
+
+
+class _VerifyWorker(QThread):
+    """Re-hashes the installed models in the background."""
+
+    result = pyqtSignal(str, str, str)  # key, status, sha256
+
+    def __init__(self, keys: list[str]) -> None:
+        super().__init__()
+        self._keys = keys
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        self._cancelled = True
+
+    def run(self) -> None:
+        for key in self._keys:
+            if self._cancelled:
+                return
+            status, digest = verify_model(key, is_cancelled=lambda: self._cancelled)
+            if not self._cancelled:
+                self.result.emit(key, status, digest)
 
 
 class ModelManagerDialog(QDialog):
@@ -113,6 +147,8 @@ class ModelManagerDialog(QDialog):
         self._models_dir.mkdir(parents=True, exist_ok=True)
         self._workers: list[_DownloadWorker] = []
         self._download_queue: list[str] = []  # keys pending in Download All
+        self._verify_results: dict[str, tuple[str, str]] = {}  # key → (status, sha256)
+        self._verify_worker: _VerifyWorker | None = None
         self._setup_ui()
         self._populate_table()
 
@@ -147,6 +183,11 @@ class ModelManagerDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
+        self.btn_verify = QPushButton("Verify Installed")
+        self.btn_verify.setToolTip("Re-check the downloaded models against their expected checksums")
+        self.btn_verify.clicked.connect(self._verify_installed)
+        btn_layout.addWidget(self.btn_verify)
+
         self.btn_download_all = QPushButton("Download All Missing")
         self.btn_download_all.clicked.connect(self._download_all)
         btn_layout.addWidget(self.btn_download_all)
@@ -171,7 +212,19 @@ class ModelManagerDialog(QDialog):
 
             status_text = "✓ Downloaded" if exists else "✗ Missing"
             status_color = "#4ec9b0" if exists else "#f44747"
+            tooltip = ""
+            if exists and key in self._verify_results:
+                check, digest = self._verify_results[key]
+                tooltip = f"SHA-256: {digest}" if digest else ""
+                if check == VERIFIED:
+                    status_text = "✓ Verified"
+                elif check == MISMATCH:
+                    status_text, status_color = "✗ Corrupt or modified", "#f44747"
+                    tooltip += "\nThis file does not match the expected checksum — delete it and download again."
+                elif check == UNVERIFIED:
+                    status_text = "✓ Downloaded (no reference checksum)"
             status_item = QTableWidgetItem(status_text)
+            status_item.setToolTip(tooltip)
             status_item.setForeground(QColor(status_color))
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(i, 2, status_item)
@@ -188,6 +241,36 @@ class ModelManagerDialog(QDialog):
             # make every button act on the last row.
             btn.clicked.connect(lambda _=False, k=key: self._on_action(k))
             self.table.setCellWidget(i, 4, btn)
+
+    def _verify_installed(self) -> None:
+        """Hash every installed model in the background and show the results."""
+        keys = [k for k in _MODEL_KEYS if model_path(k).exists()]
+        if not keys:
+            QMessageBox.information(self, "Nothing to verify", "No models are downloaded yet.")
+            return
+        self.btn_verify.setEnabled(False)
+        self.btn_verify.setText("Verifying…")
+        self._verify_results.clear()
+        worker = _VerifyWorker(keys)
+        worker.result.connect(self._on_verify_result)
+        worker.finished.connect(self._on_verify_done)
+        self._verify_worker = worker
+        worker.start()
+
+    def _on_verify_result(self, key: str, status: str, digest: str) -> None:
+        self._verify_results[key] = (status, digest)
+        self._populate_table()
+
+    def _on_verify_done(self) -> None:
+        self.btn_verify.setEnabled(True)
+        self.btn_verify.setText("Verify Installed")
+        bad = [MODELS[k]["display"] for k, (s, _d) in self._verify_results.items() if s == MISMATCH]
+        if bad:
+            QMessageBox.warning(
+                self, "Verification failed",
+                "These models do not match their expected checksums. Delete and download them again:\n\n"
+                + "\n".join(bad),
+            )
 
     def _on_action(self, key: str) -> None:
         """Handle download or delete action for a model."""
@@ -297,6 +380,9 @@ class ModelManagerDialog(QDialog):
     def closeEvent(self, event) -> None:
         """Cancel any running downloads and wait for their threads."""
         self._download_queue.clear()
+        if self._verify_worker is not None and self._verify_worker.isRunning():
+            self._verify_worker.cancel()
+            self._verify_worker.wait(5000)
         for worker in list(self._workers):
             worker.cancel()
         for worker in list(self._workers):

@@ -56,7 +56,6 @@ what you find in the [issue tracker](https://github.com/ydoc-afk/VideoCraft/issu
 - **Colorizer uses DDColor** (inference code vendored from the upstream project). It colorizes each
   frame on its own, so expect some colour flicker on moving footage; it has not been tested with real
   weights on a GPU yet.
-- Model downloads are not checksum-verified yet.
 - Linux only for now; AMD GPUs (ROCm) are untested.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions.
@@ -224,10 +223,12 @@ Models are managed through the **Model Manager** (Tools → Model Manager). Weig
 | RealESRGAN x4plus Anime | Upscaler (4× anime) | 18 MB | Real-ESRGAN |
 | SCUNet (Color, real noise) | Denoiser | 69 MB | KAIR |
 | SCUNet (Color, Gaussian σ25) | Denoiser | 69 MB | KAIR |
-| DDColor (Artistic) | Colorizer | 875 MB | HuggingFace |
-| DDColor (ModelScope) | Colorizer | 875 MB | HuggingFace |
+| DDColor (Artistic) | Colorizer | 870 MB | HuggingFace |
+| DDColor (ModelScope) | Colorizer | 870 MB | HuggingFace |
 
 Demucs (vocal remover) downloads its own weights automatically on first run.
+
+Every model above has its SHA-256 pinned in the app: a download that doesn't match is discarded with a clear message, and **Verify Installed** in the Model Manager re-checks the files you already have (hover a status to see its hash). If an upstream author re-uploads a model, run the **Model hashes** workflow (or `python scripts/compute_model_hashes.py`) and update the value in `videocraft/core/models_registry.py`.
 
 ### Hugging Face token (only if a download fails)
 

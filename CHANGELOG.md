@@ -80,6 +80,12 @@ All notable changes to VideoCraft are documented here. The format follows
   unreliable on current Python. `colorizer.backend` is gone from the config
   (old files that still contain it load normally).
 
+- **Model checksums**: every model's SHA-256 is pinned. Downloads that don't
+  match are discarded with a clear error, and the Model Manager has a
+  **Verify Installed** button (shows each file's hash on hover). A "Model
+  hashes" workflow and `scripts/compute_model_hashes.py` regenerate the values
+  when an upstream file changes.
+
 ### Changed (packaging)
 - Code now lives in the `videocraft` package (`videocraft.core`,
   `videocraft.processors`, `videocraft.ui`); `requirements.txt` is replaced by
@@ -92,7 +98,6 @@ All notable changes to VideoCraft are documented here. The format follows
 - The **colorizer** (DDColor) colorizes each frame independently, so colours
   can flicker on moving footage; it has not been tested with real weights on a
   GPU yet.
-- Model downloads are not checksum-verified yet.
 - Model downloads and a single frame's inference cannot be interrupted
   mid-call.
 - Linux only for now; a Windows installer is planned. AMD GPUs (ROCm) are
