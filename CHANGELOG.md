@@ -5,6 +5,8 @@ All notable changes to VideoCraft are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-18
+
 ### Fixed
 - **Multi-step pipelines** (e.g. denoise → upscale) re-processed the original
   file at every step, discarding earlier results. Each step now reads the
